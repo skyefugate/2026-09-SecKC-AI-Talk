@@ -1,6 +1,6 @@
 # Prompts, persona, and skills
 
-Slides 16 through 18 of the talk. The split that makes this work:
+The split that makes this work:
 
 | | Answers | Lives in |
 |---|---|---|
@@ -35,8 +35,7 @@ The useful part of the file is `resources`:
 ```
 
 Every skill on disk is discoverable. The agent picks the relevant one from the
-task, which is the behaviour on slide 18 — you say "check route table
-`rtb-0abc123`", it selects the AWS CLI skill, runs
+task — you say "check route table `rtb-0abc123`", it selects the AWS CLI skill, runs
 `aws ec2 describe-route-tables`, and hands back the routes.
 
 ### Read the `allowedTools` list before you copy this
@@ -46,10 +45,9 @@ field says "auto-approves all tools for maximum efficiency", which is an honest
 label for a loaded gun. It is set that way because standing on stage clicking
 *Allow* forty times is worse television than the alternative.
 
-Do not copy that setting into anything that touches production you care about. Slide
-10 exists specifically because of this line. AI tools act with *your* permissions,
-which makes you accountable for what you approve — and pre-approval is still
-approval, just earlier and with less attention.
+Do not copy that setting into anything that touches production you care about. AI
+tools act with *your* permissions, which makes you accountable for what you approve
+— and pre-approval is still approval, just earlier and with less attention.
 
 ## Structure
 
@@ -62,7 +60,7 @@ See [`NETWORK_AGENT.md`](NETWORK_AGENT.md).
 **Skills** — `Trigger → Procedure → Resources → Result`
 See [`skills/f5-virtual-server-discovery.md`](skills/f5-virtual-server-discovery.md).
 
-Guardrails are the section people skip and then regret. Read slide 10.
+Guardrails are the section people skip and then regret.
 
 ## The demo prompts
 

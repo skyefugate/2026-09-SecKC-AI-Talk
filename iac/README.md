@@ -75,4 +75,4 @@ with a `Snapshot` deletion policy, so deleting the stack will not delete the
 database until you clear that flag yourself — deliberate, and mildly annoying, which
 is the correct trade for a production pattern.
 
-Read it before you run it. That is the entire moral of slide 10.
+Read it before you run it. That is the entire moral of the talk.

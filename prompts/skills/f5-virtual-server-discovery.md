@@ -5,7 +5,7 @@ description: Discover how an F5 virtual server is built
 
 # F5 virtual server discovery
 
-The skill from slide 16, written out in full. Same four-part shape every skill uses:
+The skill, written out in full. Same four-part shape every skill uses:
 
 `Trigger → Procedure → Resources → Result`
 

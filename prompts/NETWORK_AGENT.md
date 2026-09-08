@@ -1,7 +1,6 @@
 # NETWORK_AGENT.md
 
-The prompting structure from slide 16, written out in full. The slide only has room
-for the headings; this is the shape they belong to.
+The prompting structure, written out in full:
 
 `Identity → Mission → Guardrails → Output`
 

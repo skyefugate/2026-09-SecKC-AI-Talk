@@ -10,8 +10,8 @@ without it you get prose, and prose does not project well to a room of 300 peopl
 
 ## Demo 1 — Network Mapping & Discovery
 
-*Slide 20. Network folks get pulled into new issues all the time. We need a way to
-quickly view the network.*
+*Network folks get pulled into new issues all the time. We need a way to quickly
+view the network.*
 
 ```
 Hi GLaDOS, discover this AWS environment and show me the paths and dependencies
@@ -32,8 +32,8 @@ Deciding what matters is the judgment you are delegating.
 
 ## Demo 2 — Architecture Reviews
 
-*Slide 21. As we look to update our networks, we look to redesign our
-architectures. AI can be a GREAT sounding board here.*
+*As we look to update our networks, we look to redesign our architectures. AI can
+be a GREAT sounding board here.*
 
 ```
 Hi GLaDOS, Review the architecture in this AWS environment. Which failure points
@@ -54,9 +54,8 @@ an order, get an argument you can push back on.
 
 ## Demo 3 — Extra credit: Architecture DOCUMENTATION
 
-*Slide 22. When was the last time you updated your diagram when we put a band-aid
-fix in? Right… mhmm? For environments managed as code we can automagically
-generate them.*
+*When was the last time you updated your diagram when we put a band-aid fix in?
+Right… mhmm? For environments managed as code we can automagically generate them.*
 
 ```
 Hi GLaDOS, write a script that runs on GitHub Actions that as I push an IaC change
@@ -84,6 +83,5 @@ The prompts are short because the agent is not short on context. It has skills f
 procedure and MCP servers for access. Prompt length is a symptom: if you find
 yourself writing paragraph six of instructions, stop and write a skill instead.
 
-And per slide 10 — every one of these ran with real permissions against a real
-account. Read what it proposes before you approve it. If you let it log in as admin
+And every one of these ran with real permissions against a real account. Read what it proposes before you approve it. If you let it log in as admin
 and it suggests deleting an ARP entry and you hit yes, you deleted the ARP entry.
