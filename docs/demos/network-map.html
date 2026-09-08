@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AWS Dependency Map — 123456789012 / us-east-2</title>
+<style>
+:root{
+  --bg:#0b0f14; --bg2:#111823; --panel:#0f1620; --line:#1e2a38; --line2:#2b3a4d;
+  --ink:#dfe7ef; --ink2:#8fa3b8; --ink3:#5d7288;
+  --ok:#3ddc97; --warn:#f5b942; --crit:#ff5c6c; --info:#4db8ff; --acc:#7c8cff;
+  --az-a:#4db8ff; --az-b:#c58cff; --az-c:#3ddc97;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+body{
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:44px 44px;background-position:-1px -1px;
+}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(120% 80% at 20% 0%,rgba(124,140,255,.10),transparent 60%);pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1560px;margin:0 auto;padding:28px 22px 60px}
+
+/* ---------- header ---------- */
+header{border:1px solid var(--line2);background:linear-gradient(180deg,rgba(17,24,35,.96),rgba(11,15,20,.9));padding:20px 22px}
+.hrow{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
+h1{margin:0 0 6px;font-size:19px;letter-spacing:-.2px;font-weight:650}
+h1 .dim{color:var(--ink3);font-weight:400}
+.sub{margin:0;color:var(--ink2);font-size:12.5px;font-family:var(--mono)}
+.facts{display:flex;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line)}
+.fact{background:var(--panel);padding:8px 13px;min-width:96px}
+.fact b{display:block;font-family:var(--mono);font-size:16px;font-weight:600;line-height:1.3}
+.fact span{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-top:2px}
+.fact.c b{color:var(--crit)} .fact.w b{color:var(--warn)} .fact.g b{color:var(--ok)} .fact.i b{color:var(--info)}
+
+/* ---------- controls ---------- */
+.controls{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;border:1px solid var(--line2);border-top:0;background:var(--panel);padding:13px 22px}
+.cgroup{display:flex;flex-direction:column;gap:7px}
+.clabel{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+button.opt,label.opt{font-family:var(--mono);font-size:11.5px;color:var(--ink2);background:var(--bg2);border:1px solid var(--line2);padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:none}
+button.opt:hover,label.opt:hover{border-color:var(--ink3);color:var(--ink)}
+button.opt[aria-pressed=true]{background:rgba(124,140,255,.16);border-color:var(--acc);color:#eaefff}
+label.opt input{accent-color:var(--acc);margin:0;width:12px;height:12px}
+label.opt.off{opacity:.5}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* ---------- layout ---------- */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:1px;background:var(--line);border:1px solid var(--line2);border-top:0}
+@media(max-width:1080px){.grid{grid-template-columns:1fr}}
+.stage{background:var(--panel);position:relative;overflow:hidden}
+.side{background:var(--panel);display:flex;flex-direction:column;min-height:0}
+svg{display:block;width:100%;height:auto}
+
+/* ---------- svg ---------- */
+.zone{fill:rgba(255,255,255,.014);stroke:var(--line2);stroke-dasharray:3 4}
+.zlabel{font:600 9.5px var(--mono);fill:var(--ink3);letter-spacing:.13em;text-transform:uppercase}
+.node{cursor:pointer}
+.node rect.box{fill:var(--bg2);stroke:var(--line2);stroke-width:1.2;transition:stroke .14s,fill .14s}
+.node:hover rect.box,.node:focus-visible rect.box{stroke:var(--ink2)}
+.node.sel rect.box{stroke:var(--acc);stroke-width:2;fill:#161e2c}
+.node.dim{opacity:.2}
+.node .nm{font:600 12.5px var(--sans);fill:var(--ink)}
+.node .mt{font:10px var(--mono);fill:var(--ink3)}
+.node .cnt{font:600 10px var(--mono);fill:var(--ink2)}
+.bar{stroke-width:3;stroke-linecap:round}
+.edge{fill:none;stroke-linecap:round;transition:opacity .14s}
+.edge.dim{opacity:.06}
+.ehit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}
+.elabel{font:9.5px var(--mono);fill:var(--ink3);pointer-events:none}
+.elabel.dim{opacity:.1}
+.badge{font:700 9px var(--mono);fill:#0b0f14}
+.pulse{animation:p 2.4s ease-in-out infinite}
+@keyframes p{0%,100%{opacity:.35}50%{opacity:1}}
+@media(prefers-reduced-motion:reduce){.pulse{animation:none;opacity:.8}}
+
+/* ---------- side panel ---------- */
+.stitle{font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);padding:12px 15px 9px;border-bottom:1px solid var(--line)}
+.detail{padding:14px 15px;border-bottom:1px solid var(--line);min-height:150px}
+.dh{font-size:15px;font-weight:650;margin:0 0 3px}
+.dsub{font-family:var(--mono);font-size:11px;color:var(--ink3);margin:0 0 11px}
+.kv{display:grid;grid-template-columns:82px 1fr;gap:4px 10px;font-size:11.5px;font-family:var(--mono)}
+.kv dt{color:var(--ink3)} .kv dd{margin:0;color:var(--ink);word-break:break-all}
+.hint{color:var(--ink3);font-size:12px;line-height:1.55}
+.flist{overflow-y:auto;max-height:560px}
+.f{border-bottom:1px solid var(--line);padding:10px 15px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
+.f:hover{background:#131c27}
+.f.sel{background:#16202e;box-shadow:inset 2px 0 0 var(--acc)}
+.sev{font:700 8.5px var(--mono);letter-spacing:.06em;padding:2.5px 5px;margin-top:1px;white-space:nowrap}
+.sev.crit{background:rgba(255,92,108,.16);color:var(--crit);border:1px solid rgba(255,92,108,.4)}
+.sev.high{background:rgba(245,185,66,.14);color:var(--warn);border:1px solid rgba(245,185,66,.38)}
+.sev.med{background:rgba(77,184,255,.13);color:var(--info);border:1px solid rgba(77,184,255,.35)}
+.sev.low{background:rgba(143,163,184,.12);color:var(--ink2);border:1px solid var(--line2)}
+.ft{font-size:12.2px;line-height:1.45;font-weight:550;margin:0 0 3px}
+.fd{font-size:11.3px;line-height:1.5;color:var(--ink2);margin:0}
+.fd code{font-family:var(--mono);font-size:10.5px;color:var(--warn);background:rgba(245,185,66,.08);padding:0 3px}
+
+/* ---------- tables / legend ---------- */
+.foot{margin-top:1px;border:1px solid var(--line2);border-top:0;background:var(--panel);padding:15px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px}
+.leg h4{margin:0 0 8px;font:600 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+.li{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);margin-bottom:5px;font-family:var(--mono)}
+.sw{width:22px;height:3px;flex:none;border-radius:2px}
+.dot{width:9px;height:9px;flex:none;border:1.5px solid}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
+th{text-align:left;color:var(--ink3);font-weight:600;padding:5px 8px 5px 0;border-bottom:1px solid var(--line2);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+td{padding:4.5px 8px 4.5px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
+td.n{color:var(--ink);font-weight:600}
+.bad{color:var(--crit)} .good{color:var(--ok)} .mid{color:var(--warn)}
+.mini{height:5px;background:var(--line);position:relative;min-width:52px}
+.mini i{position:absolute;inset:0 auto 0 0;background:var(--crit)}
+.note{margin-top:14px;color:var(--ink3);font-size:11px;line-height:1.6;font-family:var(--mono)}
+.tag{display:inline-block;font:10px var(--mono);color:var(--ink3);border:1px solid var(--line2);padding:1px 5px;margin:0 3px 3px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+ <div class="hrow">
+  <div>
+    <h1>Dependency &amp; Path Map <span class="dim">/ acme-use2</span></h1>
+    <p class="sub">acct 123456789012 &middot; us-east-2 &middot; vpc-069cd5268c09419ce (10.20.64.0/18 + 2001:db8:1892:27fd::/56)</p>
+    <p class="sub" style="margin-top:3px;color:var(--ink3)">flow evidence 2026-09-08 14:24&ndash;16:45 UTC &middot; 70,393 records &middot; 60 parquet objects</p>
+  </div>
+  <div class="facts">
+    <div class="fact"><b>10</b><span>EC2 running</span></div>
+    <div class="fact"><b>4</b><span>ECS tasks</span></div>
+    <div class="fact c"><b>10/18</b><span>stale AAAA</span></div>
+    <div class="fact c"><b>4</b><span>single-point svc</span></div>
+    <div class="fact w"><b>6,974</b><span>scan rejects</span></div>
+    <div class="fact i"><b>0</b><span>NAT / LB</span></div>
+  </div>
+ </div>
+</header>
+
+<div class="controls">
+  <div class="cgroup">
+    <span class="clabel" id="lbl-color">Colour nodes by</span>
+    <div class="opts" role="group" aria-labelledby="lbl-color">
+      <button class="opt" data-mode="health" aria-pressed="true">health</button>
+      <button class="opt" data-mode="az" aria-pressed="false">availability zone</button>
+      <button class="opt" data-mode="vol" aria-pressed="false">traffic volume</button>
+    </div>
+  </div>
+  <div class="cgroup">
+    <span class="clabel" id="lbl-layer">Layers</span>
+    <div class="opts" role="group" aria-labelledby="lbl-layer">
+      <label class="opt"><input type="checkbox" data-layer="svc" checked> service traffic</label>
+      <label class="opt"><input type="checkbox" data-layer="aws" checked> AWS egress</label>
+      <label class="opt"><input type="checkbox" data-layer="scan" checked> internet scan</label>
+      <label class="opt"><input type="checkbox" data-layer="ctl"> control plane</label>
+      <label class="opt"><input type="checkbox" data-layer="stale" checked> stale-DNS overlay</label>
+    </div>
+  </div>
+  <div class="cgroup">
+    <span class="clabel" id="lbl-act">View</span>
+    <div class="opts" role="group" aria-labelledby="lbl-act">
+      <button class="opt" id="reset">clear selection</button>
+    </div>
+  </div>
+</div>
+
+<div class="grid">
+  <div class="stage">
+    <svg id="map" viewBox="0 78 1240 500" role="img" aria-label="Interactive AWS dependency diagram. Use the findings list or tab to each node for detail.">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="context-stroke"/></marker>
+        <marker id="arx" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="#ff5c6c"/></marker>
+        <marker id="ars" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="#4db8ff"/></marker>
+      </defs>
+      <g id="zones"></g>
+      <g id="edges"></g>
+      <g id="elabels"></g>
+      <g id="nodes"></g>
+    </svg>
+  </div>
+
+  <aside class="side">
+    <div class="stitle">Inspector</div>
+    <div class="detail" id="detail">
+      <p class="hint">Select a node or a finding to inspect resource identity, availability-zone placement, DNS registration health and observed traffic.</p>
+    </div>
+    <div class="stitle">Findings &mdash; 13</div>
+    <div class="flist" id="findings"></div>
+  </aside>
+</div>
+
+<div class="foot">
+  <div class="leg">
+    <h4>Edge semantics</h4>
+    <div class="li"><span class="sw" style="background:#3ddc97"></span> healthy service call</div>
+    <div class="li"><span class="sw" style="background:#f5b942"></span> resolves via stale DNS</div>
+    <div class="li"><span class="sw" style="background:#ff5c6c"></span> blocked by security group</div>
+    <div class="li"><span class="sw" style="background:#4db8ff"></span> AWS API egress via EIGW</div>
+    <div class="li"><span class="sw" style="background:#7c8cff"></span> control-plane write</div>
+    <div class="li" style="margin-top:8px"><span class="sw" style="background:var(--ink3);height:7px"></span> thickness &prop; flow count</div>
+  </div>
+  <div class="leg">
+    <h4>Node health</h4>
+    <div class="li"><span class="dot" style="border-color:#ff5c6c;background:rgba(255,92,108,.25)"></span> critical &mdash; SPOF or &ge;75% stale DNS</div>
+    <div class="li"><span class="dot" style="border-color:#f5b942;background:rgba(245,185,66,.2)"></span> degraded &mdash; partial stale DNS</div>
+    <div class="li"><span class="dot" style="border-color:#3ddc97;background:rgba(61,220,151,.18)"></span> healthy</div>
+    <div class="li"><span class="dot" style="border-color:#5d7288;background:transparent"></span> unregistered / external</div>
+    <div class="li" style="margin-top:8px"><span class="dot" style="border-color:#4db8ff"></span> 2a &nbsp;<span class="dot" style="border-color:#c58cff"></span> 2b &nbsp;<span class="dot" style="border-color:#3ddc97"></span> 2c</div>
+  </div>
+  <div class="leg" style="grid-column:span 2;min-width:340px">
+    <h4>Cloud Map / Route 53 registration health &mdash; acme.use2.internal (Z7E83D4C17524B080F658)</h4>
+    <table>
+      <thead><tr><th>service</th><th>records</th><th>live</th><th>stale</th><th>blackhole</th><th style="width:74px"></th></tr></thead>
+      <tbody id="dnstab"></tbody>
+    </table>
+    <p class="note">
+      Registration is <b>append&#8209;only</b>: <code>acme-use2-svc-register</code> runs every 5&nbsp;min and adds current instance addresses to Cloud Map but never de-registers replaced ones. Flow logs date the two most recent replacements precisely &mdash; <b>db&#8209;replica</b> cut over at 15:41&nbsp;UTC and <b>auth</b> at 16:08&nbsp;UTC; both predecessors still resolve. The <b>app</b> and <b>db&#8209;primary</b> stale entries carried zero traffic across the whole 2h20m window, so they have been dead longer.
+    </p>
+  </div>
+</div>
+
+<div class="foot" style="grid-template-columns:1fr">
+  <div>
+    <h4 style="margin:0 0 9px;font:600 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)">Evidence basis &amp; limits</h4>
+    <p class="note" style="margin:0">
+      Built from live API reads: <span class="tag">ec2 describe-*</span><span class="tag">ecs describe-*</span><span class="tag">servicediscovery list-*</span><span class="tag">route53 list-*</span><span class="tag">lambda get-*</span><span class="tag">events list-rules</span><span class="tag">iam get-*</span> plus 60 VPC flow-log Parquet objects from <span class="tag">s3://acme-flowlogs-123456789012-us-east-2</span>.<br>
+      <b>Not verified:</b> CloudFormation APIs are denied by permissions boundary <code>DemoAdminBoundary</code>, so stack structure is inferred from <code>aws:cloudformation:*</code> resource tags (stack <code>acme-use2</code>) rather than read directly. No process-level or application-log inspection was performed, so service roles are inferred from listening ports and observed direction. Traffic conclusions describe the 14:24&ndash;16:45&nbsp;UTC window only.
+    </p>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ============================ data ============================ */
+const AZC={a:'#4db8ff',b:'#c58cff',c:'#3ddc97'};
+const N={
+ internet:{x:30,y:212,w:106,h:50,nm:'Internet',mt:'untrusted',kind:'ext',health:'ext',
+   det:{Type:'External',Observed:'6,974 REJECT flows',Sources:'2,341 distinct IPs',Ports:'3,036 distinct'},
+   note:'Inbound scanning only. Every attempt was dropped by the workload security group, which has no 0.0.0.0/0 ingress rule.'},
+
+ edge:{x:196,y:216,w:146,h:78,nm:'edge',mt:'ECS Fargate ×4',kind:'ecs',health:'ok',az:'a/b/c',cnt:'4/4 tasks live',
+   det:{Cluster:'acme-use2',Service:'acme-use2-edge',TaskDef:'acme-use2-edge:2',Desired:'4 (4 running)',Subnets:'pub-a / pub-b / pub-c ×2',PublicIP:'ENABLED',DNS:'edge.acme.use2.internal (4×A)'},
+   ips:'203.0.113.10 · 203.0.113.11 · 203.0.113.12 · 203.0.113.13',
+   note:'Only internet-reachable tier and the only component with public IPv4. Registered with 4 healthy A records. Calls cache, auth and db-primary directly — it never calls the app tier.'},
+
+ app:{x:396,y:322,w:146,h:76,nm:'app',mt:'EC2 ×3 · t4g.small',kind:'ec2',health:'warn',az:'a/b/c',cnt:'3 live / 6 registered',
+   det:{Instances:'app-1 (2a) · app-2 (2b) · app-3 (2c)',IDs:'i-08cefcd44adcfb45e, i-09f7e4a20a7e33782, i-08df9b3e895a0b2ce',DNS:'app.acme.use2.internal',Records:'6 AAAA — 3 live, 3 stale',Inbound:'none observed'},
+   note:'Spread cleanly across three AZs, but half its DNS answers are dead. Nothing ever connects to it: port 8080 saw no legitimate traffic in the window, so app behaves as an outbound worker while still being advertised as a callable service.'},
+
+ auth:{x:602,y:112,w:130,h:64,nm:'auth',mt:'EC2 ×1 · 8443',kind:'ec2',health:'crit',az:'a',cnt:'1 live / 4 registered',
+   det:{Instance:'i-0ec7fb1fcfa48d30b',Private:'10.20.73.150',AZ:'us-east-2a',DNS:'4 AAAA — 1 live, 3 stale',Blackhole:'75%',Replaced:'16:08 UTC'},
+   note:'Single instance on the critical path for both edge and app. Cut over at 16:08 UTC; the predecessor address is still published, so three of four DNS answers now go nowhere.'},
+
+ cache:{x:602,y:224,w:130,h:64,nm:'cache',mt:'EC2 ×1 · 6379',kind:'ec2',health:'crit',az:'a',cnt:'1 live / 1 registered',
+   det:{Instance:'i-0243e132c8670d6d0',Private:'10.20.76.46',AZ:'us-east-2a',DNS:'1 AAAA — clean',Share:'35,423 flows = 50.3% of VPC'},
+   note:'DNS is clean, but this is the single busiest dependency in the VPC and it has no redundancy. Every app instance and every edge task calls it. One instance, one AZ, and it carries half of all observed flows.'},
+
+ 'db-primary':{x:812,y:168,w:136,h:68,nm:'db-primary',mt:'EC2 ×1 · 5432',kind:'ec2',health:'crit',az:'a',cnt:'1 live / 4 registered',
+   det:{Instance:'i-07fdd16a86ffc02b0',Private:'10.20.67.167',AZ:'us-east-2a',DNS:'4 AAAA — 1 live, 3 stale',Blackhole:'75%',Clients:'edge, app, db-replica'},
+   note:'The sole write target, on one instance in one AZ, advertised through four DNS answers of which three are dead. A client that round-robins has a 75% chance of dialling a host that does not exist.'},
+
+ 'db-replica':{x:812,y:310,w:136,h:68,nm:'db-replica',mt:'EC2 ×1 · 5432/8443',kind:'ec2',health:'warn',az:'b',cnt:'1 live / 2 registered',
+   det:{Instance:'i-0929de9ffcbe49f71',Private:'10.20.82.173',AZ:'us-east-2b',DNS:'2 AAAA — 1 live, 1 stale',Replication:'68.1 MB to db-primary',Replaced:'15:41 UTC'},
+   note:'Replaced at 15:41 UTC with the old address left in DNS. Streams replication from db-primary — the largest byte flow in the VPC at 68.1 MB.'},
+
+ syslog:{x:602,y:430,w:130,h:60,nm:'syslog',mt:'EC2 ×1 · udp/514',kind:'ec2',health:'crit',az:'b',cnt:'1 live / 1 registered',
+   det:{Instance:'i-0997456c7e1dce3de',Private:'10.20.83.170',AZ:'us-east-2b',DNS:'1 AAAA — clean',Senders:'app, canary, batch'},
+   note:'Central log sink for app, canary and batch, running as a single instance. Clean DNS, but its loss silently blinds logging for every sender.'},
+
+ canary:{x:396,y:420,w:146,h:58,nm:'canary',mt:'EC2 ×1 · prober',kind:'ec2',health:'unreg',az:'c',cnt:'unregistered',
+   det:{Instance:'i-0766add6cc543d811',Private:'10.20.104.209',AZ:'us-east-2c',CloudMap:'none',Probes:'db-replica:8443, db-replica:7777'},
+   note:'Not registered in Cloud Map, so nothing can discover it. Its probe to db-replica:7777 is rejected outright — the security group never allowed 7777 — meaning that health signal has always been failing.'},
+
+ batch:{x:396,y:496,w:146,h:56,nm:'batch',mt:'EC2 ×1 · worker',kind:'ec2',health:'unreg',az:'c',cnt:'unregistered',
+   det:{Instance:'i-050c3364c2e1ea7e8',Private:'10.20.105.33',AZ:'us-east-2c',CloudMap:'none',Talks:'syslog:514, AWS APIs'},
+   note:'Also absent from Cloud Map. Emits logs and calls AWS APIs but is undiscoverable by any peer.'},
+
+ 'aws-api':{x:1064,y:380,w:112,h:72,nm:'AWS APIs',mt:'via EIGW',kind:'aws',health:'ext',
+   det:{Path:'egress-only IGW (traffic_path 8)',Flows:'9,434 egress',Services:'SSM, CloudWatch, S3',Endpoint:'S3 gateway — 107 flows only'},
+   note:'All AWS control-plane access leaves over IPv6 through the egress-only internet gateway. The S3 gateway endpoint is IPv4-only and therefore almost entirely bypassed: 107 flows through it versus thousands around it.'},
+
+ ebridge:{x:30,y:580,w:112,h:48,nm:'EventBridge',mt:'3 schedules',kind:'ctl',health:'ext',layer:'ctl',
+   det:{Rules:'RegistrarSchedule 5 min',R2:'EniSchedule 5 min',R3:'ConfigSchedule 30 min',State:'all ENABLED'},
+   note:'Drives the whole registration and inventory pipeline. The 5-minute registrar cadence is what keeps appending addresses to Cloud Map.'},
+
+ registrar:{x:196,y:580,w:146,h:48,nm:'svc-register',mt:'λ python3.12',kind:'ctl',health:'crit',layer:'ctl',
+   det:{Role:'acme-use2-RegistrarRole',Target:'ns-0ce75bdfdfc530bb',Schedule:'rate(5 minutes)',Behaviour:'append-only'},
+   note:'Root cause of the stale-DNS condition. It registers current instances into Cloud Map but performs no de-registration, so every instance replacement permanently adds a dead answer.'},
+
+ cloudmap:{x:602,y:580,w:130,h:48,nm:'Cloud Map',mt:'+ Route 53',kind:'ctl',health:'crit',layer:'ctl',
+   det:{Namespace:'ns-0ce75bdfdfc530bb',Zone:'Z7E83D4C17524B080F658',Records:'24 (18 AAAA + 4 A)',Stale:'10 of 18 AAAA',Orphan:'reporting — 0 instances'},
+   note:'Holds the authoritative service answers. 10 of 18 AAAA records point at addresses no ENI owns. A duplicate namespace of the same name is bound to a VPC that no longer exists.'},
+
+ cmdb:{x:812,y:580,w:136,h:48,nm:'cmdb λ ×2',mt:'→ S3 snapshots',kind:'ctl',health:'ok',layer:'ctl',
+   det:{Functions:'cmdb-eni (5 min), cmdb-config (30 min)',Role:'acme-use2-SnapshotRole',Bucket:'acme-flowlogs-…-us-east-2',Prefix:'cmdb/eni/, cmdb/config/'},
+   note:'Inventory snapshotters. Working as intended — they already record the ENI truth that contradicts the DNS records.'}
+};
+
+const E=[
+ {lo:[-83,48],key:1,s:'internet',d:'edge',p:'scan',k:'rej',f:6974,lbl:'6,974 REJECT',layer:'scan',
+   info:'2,341 distinct sources probing 3,036 ports. All dropped — telnet/23, 8080, and broad sweeps from 203.0.113.14/24.'},
+ {lo:[-40,-4],key:1,s:'app',d:'cache',p:'6379',k:'ok',f:19588,lbl:'19,588 · 7.3 MB',layer:'svc',info:'Heaviest application dependency. All three app instances, continuous.'},
+ {lo:[-50,-17],key:1,s:'edge',d:'cache',p:'6379',k:'ok',f:15818,lbl:'15,818 · 5.9 MB',layer:'svc',info:'All four edge tasks hit cache directly.'},
+ {lo:[-56,-6],key:1,s:'edge',d:'auth',p:'8443',k:'stale',f:5094,lbl:'5,094 · 81% stale',layer:'svc',info:'4,118 of 5,094 flows went to the address retired at 16:08 UTC. Still published in DNS.'},
+ {lo:[-30,-30],key:1,s:'app',d:'auth',p:'8443',k:'stale',f:1606,lbl:'1,606 · 80% stale',layer:'svc',info:'1,288 of 1,606 flows targeted the retired auth address.'},
+ {s:'app',d:'syslog',p:'514',k:'ok',f:814,lbl:'814',layer:'svc',info:'udp/514 log shipping from all three app instances.'},
+ {s:'edge',d:'db-primary',p:'5432',k:'ok',f:348,lbl:'348',layer:'svc',info:'Edge tasks query Postgres directly, bypassing the app tier.'},
+ {lo:[60,10],key:1,s:'db-replica',d:'db-primary',p:'5432',k:'ok',f:312,lbl:'312 · 68.1 MB',layer:'svc',info:'Replication stream. Largest byte volume in the VPC.'},
+ {s:'canary',d:'db-replica',p:'8443',k:'stale',f:226,lbl:'226 · 65% stale',layer:'svc',info:'146 of 226 flows hit the address retired at 15:41 UTC.'},
+ {s:'app',d:'db-primary',p:'5432',k:'ok',f:160,curve:-90,lbl:'160',layer:'svc',info:'Direct writes from the app tier.'},
+ {lo:[0,-10],key:1,s:'canary',d:'db-replica',p:'7777',k:'rej',f:89,lbl:'47 REJECT',layer:'svc',curve:52,
+   info:'Port 7777 is not present in any security-group rule, so this probe has never succeeded.'},
+ {s:'canary',d:'syslog',p:'514',k:'ok',f:135,lbl:'135',layer:'svc'},
+ {s:'batch',d:'syslog',p:'514',k:'ok',f:132,lbl:'132',layer:'svc'},
+ {lo:[326,96],key:1,s:'app',d:'aws-api',p:'443',k:'aws',f:6152,lbl:'v6 · 9,434 via EIGW',layer:'aws',info:'34.7 MB to AWS APIs over IPv6 via the egress-only IGW.'},
+ {s:'syslog',d:'aws-api',p:'443',k:'aws',f:1532,lbl:'1,532',layer:'aws'},
+ {s:'canary',d:'aws-api',p:'443',k:'aws',f:1192,lbl:'1,192',layer:'aws'},
+ {s:'batch',d:'aws-api',p:'443',k:'aws',f:918,lbl:'918',layer:'aws'},
+ {s:'db-replica',d:'aws-api',p:'443',k:'aws',f:918,lbl:'918',layer:'aws'},
+ {s:'cache',d:'aws-api',p:'443',k:'aws',f:868,lbl:'868',layer:'aws'},
+ {s:'db-primary',d:'aws-api',p:'443',k:'aws',f:868,lbl:'868',layer:'aws'},
+ {s:'auth',d:'aws-api',p:'443',k:'aws',f:796,lbl:'796',layer:'aws'},
+ {lo:[426,165],key:1,s:'edge',d:'aws-api',p:'443',k:'aws',f:5378,lbl:'v4 · 5,378 via IGW',layer:'aws',info:'Edge egresses over IPv4 through the normal internet gateway — it is the only tier with an IPv4 path out.'},
+ {s:'ebridge',d:'registrar',p:'',k:'ctl',f:400,lbl:'5 min',layer:'ctl'},
+ {s:'registrar',d:'cloudmap',p:'',k:'ctl',f:900,lbl:'append-only',layer:'ctl',info:'Writes registrations without ever removing retired ones.'},
+ {s:'ebridge',d:'cmdb',p:'',k:'ctl',f:300,lbl:'5 / 30 min',layer:'ctl',curve:120},
+ {s:'cloudmap',d:'app',p:'',k:'stale',f:600,lbl:'resolves',layer:'ctl',curve:-90,info:'Serves the answers that clients dial — including the dead ones.'}
+];
+
+const F=[
+ {id:'f1',sev:'crit',t:'Cloud Map registration is append-only — 10 of 18 AAAA records are dead',
+  d:'<code>acme-use2-svc-register</code> adds live addresses every 5 min but never de-registers. Flow logs date two cutovers exactly: db-replica 15:41 UTC, auth 16:08 UTC. Both predecessors still resolve. app and db-primary stale records saw zero traffic all window, so they died earlier.',
+  n:['registrar','cloudmap','auth','db-primary','app','db-replica'],e:['edge|auth','app|auth','canary|db-replica']},
+ {id:'f2',sev:'crit',t:'db-primary: single writer, single AZ, 75% of its DNS answers dead',
+  d:'One instance <code>i-07fdd16a86ffc02b0</code> in us-east-2a serves all writes for edge, app and db-replica, yet publishes 4 AAAA of which 3 are unreachable. A round-robin client fails roughly three attempts in four.',
+  n:['db-primary'],e:['edge|db-primary','app|db-primary','db-replica|db-primary']},
+ {id:'f3',sev:'crit',t:'auth: single instance on the critical path, 75% stale after a 16:08 cutover',
+  d:'Both edge and app authenticate through one host in us-east-2a. 4 AAAA published, 1 live. Before 16:08 UTC, 81% of edge→auth flows used the now-retired address.',
+  n:['auth','edge','app'],e:['edge|auth','app|auth']},
+ {id:'f4',sev:'crit',t:'us-east-2a holds cache, db-primary and auth — losing one AZ is a full outage',
+  d:'All three sit in <code>subnet-09ec65b1c3fcf9128</code>. cache alone carries 35,423 flows (50.3% of everything observed) on a single instance. app and edge are spread across 2a/2b/2c, so the stateless tiers survive an AZ loss while every dependency they need does not.',
+  n:['cache','db-primary','auth'],e:['app|cache','edge|cache']},
+ {id:'f5',sev:'high',t:'Four ECS tasks hold public IPv4 with no load balancer in front',
+  d:'<code>assignPublicIp: ENABLED</code> puts edge tasks directly on 203.0.113.10, 203.0.113.11, 203.0.113.12 and 203.0.113.13. In 2h20m they absorbed 6,974 rejected probes from 2,341 sources across 3,036 ports. The security group has no 0.0.0.0/0 ingress so nothing landed, but the exposure is gratuitous — there is no ALB, NLB or CloudFront anywhere in the account.',
+  n:['edge','internet'],e:['internet|edge']},
+ {id:'f6',sev:'high',t:'No NAT gateway and no IPv4 default route — everything depends on the egress-only IGW',
+  d:'Workload route tables carry only <code>local</code>, <code>::/0 → eigw-0ab045701000f0e21</code> and the S3 prefix list. IPv4 egress is impossible. All 9,434 AWS-bound egress flows leave over IPv6 via the EIGW, so SSM, CloudWatch and S3 all hang off one path. The security-group egress rule is even labelled &ldquo;egress via NAT if enabled&rdquo; for a NAT that does not exist.',
+  n:['aws-api'],e:['app|aws-api','edge|aws-api','db-primary|aws-api','cache|aws-api']},
+ {id:'f7',sev:'med',t:'S3 gateway endpoint is bypassed — it cannot serve IPv6',
+  d:'<code>vpce-0408febdcc55a19cf</code> is IPv4-only, but instances reach S3 over IPv6. Only 107 flows used the endpoint (traffic_path 7) against thousands routed out the EIGW (traffic_path 8). The endpoint delivers essentially none of its intended isolation or data-transfer benefit.',
+  n:['aws-api'],e:[]},
+ {id:'f8',sev:'med',t:'canary probes db-replica:7777, a port no security group permits',
+  d:'47 REJECTs observed. 7777 appears in no ingress rule, so this health check has never succeeded — and 65% of the canary&rsquo;s companion 8443 probes went to the address retired at 15:41 UTC. The monitoring signal is doubly unreliable.',
+  n:['canary','db-replica'],e:['canary|db-replica']},
+ {id:'f9',sev:'med',t:'Security group contradicts its own description with an expired temporary rule',
+  d:'Described as &ldquo;Self-referencing only. No inbound internet path.&rdquo; yet <code>sgr-06224b4c6bdd85810</code> allows tcp/9999 from <code>2001:db8:1892:27fd::/56</code> — the whole VPC IPv6 range, not just group members — annotated &ldquo;temp - monitoring agent eval, remove after Q3&rdquo;. Zero port-9999 traffic was observed, so it is dead weight that widens the model. Inbound from the internet is genuinely absent, so the risk is internal lateral reach rather than exposure.',
+  n:[],e:[]},
+ {id:'f10',sev:'med',t:'The app tier receives no traffic yet is advertised as a service',
+  d:'Port 8080 saw only rejected internet probes — no peer ever connected. edge calls cache, auth and db-primary directly. app publishes 6 AAAA records and is a pure outbound worker, so the 8080 self-reference rule and half of its DNS footprint describe a path that is not in use.',
+  n:['app','edge'],e:[]},
+ {id:'f11',sev:'low',t:'batch and canary run unregistered and undiscoverable',
+  d:'Both are running with IPv6 addresses but have no Cloud Map service, so no peer can resolve them. A <code>reporting</code> service exists in Cloud Map with 0 instances and no DNS records — the mirror-image orphan.',
+  n:['batch','canary','cloudmap'],e:[]},
+ {id:'f12',sev:'low',t:'Duplicate private zone bound to a VPC that no longer exists',
+  d:'Namespace <code>ns-29a5b43aaaecd57a</code> and zone <code>ZDC995D8D73A58542935B</code> are also named acme.use2.internal but associated with <code>vpc-0edca47099f5afb6b</code>, which is not present in the account. It holds only NS and SOA. Harmless today, but a same-name zone is a resolution hazard if that VPC id is ever reused.',
+  n:['cloudmap'],e:[]},
+ {id:'f13',sev:'low',t:'us-east-1 is an empty shell, not a working DR region',
+  d:'<code>vpc-0faf1f66f924f2121</code> (acme-use1) has no subnets and no ENIs. Its Cloud Map namespace acme.use1.internal defines 6 services — app, auth, cache, db-primary, db-replica, syslog — all with 0 instances. No ECS cluster, no flow log attached, and the nt-flowlogs bucket is empty. The naming mirrors production, which invites the assumption of failover capacity that does not exist.',
+  n:[],e:[]}
+];
+
+/* ============================ render ============================ */
+const KC={ok:'#3ddc97',stale:'#f5b942',rej:'#ff5c6c',aws:'#4db8ff',ctl:'#7c8cff'};
+const HC={ok:'#3ddc97',warn:'#f5b942',crit:'#ff5c6c',unreg:'#5d7288',ext:'#5d7288'};
+const ZONES=[
+ {x:16,y:198,w:136,h:100,l:'internet'},
+ {x:180,y:196,w:180,h:126,l:'public subnets · edge'},
+ {x:380,y:304,w:180,h:266,l:'workload subnets'},
+ {x:578,y:92,w:392,h:410,l:'core services + data'},
+ {x:16,y:562,w:952,h:84,l:'control plane'}
+];
+let mode='health', sel=null, selF=null;
+const layers={svc:1,aws:1,scan:1,ctl:0,stale:1};
+
+const svg=document.getElementById('map');
+const gz=document.getElementById('zones'),ge=document.getElementById('edges'),
+      gl=document.getElementById('elabels'),gn=document.getElementById('nodes');
+const S=(t,a={})=>{const e=document.createElementNS('http://www.w3.org/2000/svg',t);
+  for(const k in a)e.setAttribute(k,a[k]);return e};
+
+ZONES.forEach(z=>{
+  gz.appendChild(S('rect',{class:'zone',x:z.x,y:z.y,width:z.w,height:z.h,rx:3}));
+  const t=S('text',{class:'zlabel',x:z.x+9,y:z.y+15});t.textContent=z.l;gz.appendChild(t);
+});
+
+const C=n=>({x:N[n].x+N[n].w/2,y:N[n].y+N[n].h/2});
+const W=e=>e.k==='aws'?1.4:Math.max(1.3,Math.min(5.6,Math.log(e.f+1)*0.66));
+
+/* ---- edges ---- */
+E.forEach(e=>{
+  const a=C(e.s),b=C(e.d);
+  const dx=b.x-a.x,dy=b.y-a.y;
+  const cv=e.curve!==undefined?e.curve:(Math.abs(dy)>4?22:0);
+  const mx=(a.x+b.x)/2, my=(a.y+b.y)/2 - (cv?cv:0)*(dx>=0?1:-1)*.55;
+  const A=N[e.s],B=N[e.d];
+  const ang=Math.atan2(b.y-a.y,b.x-a.x);
+  const p1={x:a.x+Math.cos(ang)*(A.w/2+3),y:a.y+Math.sin(ang)*(A.h/2+3)};
+  const p2={x:b.x-Math.cos(ang)*(B.w/2+11),y:b.y-Math.sin(ang)*(B.h/2+11)};
+  const d=`M${p1.x},${p1.y} Q${mx},${my} ${p2.x},${p2.y}`;
+  const col=KC[e.k];
+  const path=S('path',{class:'edge',d,stroke:col,'stroke-width':W(e),
+    'marker-end':e.k==='rej'?'url(#arx)':(e.k==='aws'?'url(#ars)':'url(#ar)'),
+    'stroke-dasharray':e.k==='rej'?'5 4':(e.k==='ctl'?'2 4':'none'),
+    opacity:e.k==='aws'?.34:.85});
+  path.dataset.id=e.s+'|'+e.d; path.dataset.layer=e.layer; path.dataset.k=e.k;
+  ge.appendChild(path);
+  const hit=S('path',{class:'ehit',d,tabindex:'0',role:'button',
+    'aria-label':`${e.s} to ${e.d} port ${e.p||'n/a'}, ${e.lbl}`});
+  hit.dataset.id=e.s+'|'+e.d; hit.dataset.layer=e.layer;
+  const show=()=>edgeDetail(e); hit.addEventListener('mouseenter',show);
+  hit.addEventListener('focus',show); hit.addEventListener('click',show);
+  ge.appendChild(hit);
+  if(e.key){
+    const off=e.lo||[0,0];
+    const lx=p1.x+(p2.x-p1.x)*.5+off[0], ly=p1.y+(p2.y-p1.y)*.5-(cv?cv*.42:0)-7+off[1];
+    const tx=S('text',{class:'elabel',x:lx,y:ly,'text-anchor':'middle'});
+    tx.textContent=(e.p&&e.p!=='scan'?e.p+' · ':'')+e.lbl;
+    tx.dataset.id=e.s+'|'+e.d; tx.dataset.layer=e.layer;
+    gl.appendChild(tx);
+  }
+});
+
+/* ---- nodes ---- */
+for(const k in N){
+  const n=N[k];
+  const g=S('g',{class:'node',tabindex:'0',role:'button','aria-label':n.nm+' — '+n.mt});
+  g.dataset.id=k; g.dataset.layer=n.layer||'core';
+  const r=S('rect',{class:'box',x:n.x,y:n.y,width:n.w,height:n.h,rx:3});
+  g.appendChild(r);
+  const bar=S('line',{class:'bar',x1:n.x+1.5,y1:n.y+2.5,x2:n.x+1.5,y2:n.y+n.h-2.5});
+  bar.dataset.bar='1'; g.appendChild(bar);
+  const t1=S('text',{class:'nm',x:n.x+13,y:n.y+22});t1.textContent=n.nm;g.appendChild(t1);
+  const t2=S('text',{class:'mt',x:n.x+13,y:n.y+37});t2.textContent=n.mt;g.appendChild(t2);
+  if(n.cnt){const t3=S('text',{class:'cnt',x:n.x+13,y:n.y+n.h-9});t3.textContent=n.cnt;g.appendChild(t3);}
+  if(n.az){const t4=S('text',{class:'mt',x:n.x+n.w-11,y:n.y+22,'text-anchor':'end'});t4.textContent='az '+n.az;g.appendChild(t4);}
+  const act=()=>select(k);
+  g.addEventListener('click',act);
+  g.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();act();}});
+  g.addEventListener('mouseenter',()=>{if(!sel)detail(k)});
+  gn.appendChild(g);
+}
+
+function paint(){
+  gn.querySelectorAll('.node').forEach(g=>{
+    const n=N[g.dataset.id],bar=g.querySelector('[data-bar]'),box=g.querySelector('.box');
+    let c;
+    if(mode==='az') c=n.az?(n.az.length>1?'#7c8cff':AZC[n.az]):'#39485c';
+    else if(mode==='vol'){
+      const f=E.filter(e=>e.s===g.dataset.id||e.d===g.dataset.id).reduce((s,e)=>s+e.f,0);
+      const t=Math.min(1,f/26000);
+      c=`hsl(${210-t*205} ${45+t*45}% ${58-t*8}%)`;
+    } else c=HC[n.health];
+    bar.setAttribute('stroke',c);
+    box.setAttribute('fill', n.health==='crit'&&mode==='health' ? 'rgba(255,92,108,.055)' :
+                             n.health==='warn'&&mode==='health' ? 'rgba(245,185,66,.045)' : 'var(--bg2)');
+  });
+}
+function applyLayers(){
+  ge.querySelectorAll('.edge,.ehit').forEach(p=>{
+    p.style.display=layers[p.dataset.layer]?'':'none';
+  });
+  gl.querySelectorAll('.elabel').forEach(t=>t.style.display=layers[t.dataset.layer]?'':'none');
+  gn.querySelectorAll('.node').forEach(g=>{
+    const L=g.dataset.layer;
+    g.style.display=(L==='ctl'&&!layers.ctl)?'none':'';
+  });
+  gz.querySelectorAll('.zone').forEach((z,i)=>{ if(i===4) z.style.display=layers.ctl?'':'none'; });
+  svg.setAttribute('viewBox', layers.ctl?'0 78 1240 590':'0 78 1240 500');
+  gz.querySelectorAll('.zlabel').forEach(t=>{ if(t.textContent==='control plane') t.style.display=layers.ctl?'':'none'; });
+  // stale overlay: amber emphasis + pulse when on, neutral rendering when off
+  ge.querySelectorAll('.edge').forEach(p=>{
+    if(p.dataset.k!=='stale') return;
+    p.classList.toggle('pulse',!!layers.stale);
+    p.setAttribute('stroke',layers.stale?KC.stale:KC.ok);
+    p.setAttribute('stroke-dasharray',layers.stale?'none':'none');
+  });
+  gl.querySelectorAll('.elabel').forEach(t=>{
+    const e=E.find(x=>x.s+'|'+x.d===t.dataset.id);
+    if(e&&e.k==='stale') t.style.fill=layers.stale?KC.stale:'var(--ink3)';
+  });
+}
+function clearHi(){
+  gn.querySelectorAll('.node').forEach(g=>g.classList.remove('sel','dim'));
+  ge.querySelectorAll('.edge').forEach(p=>p.classList.remove('dim'));
+  gl.querySelectorAll('.elabel').forEach(t=>t.classList.remove('dim'));
+}
+function highlight(ns,es){
+  clearHi();
+  const NS=new Set(ns),ES=new Set(es||[]);
+  gn.querySelectorAll('.node').forEach(g=>{
+    if(NS.has(g.dataset.id))g.classList.add('sel'); else g.classList.add('dim');
+  });
+  ge.querySelectorAll('.edge').forEach(p=>{
+    const [a,b]=p.dataset.id.split('|');
+    const keep=ES.has(p.dataset.id)||(NS.has(a)&&NS.has(b));
+    if(!keep)p.classList.add('dim');
+  });
+  gl.querySelectorAll('.elabel').forEach(t=>{
+    const [a,b]=t.dataset.id.split('|');
+    if(!(ES.has(t.dataset.id)||(NS.has(a)&&NS.has(b))))t.classList.add('dim');
+  });
+}
+function select(k){
+  sel=k; selF=null;
+  document.querySelectorAll('.f').forEach(f=>f.classList.remove('sel'));
+  const rel=E.filter(e=>e.s===k||e.d===k);
+  highlight([k,...rel.map(e=>e.s===k?e.d:e.s)], rel.map(e=>e.s+'|'+e.d));
+  detail(k);
+}
+const D=document.getElementById('detail');
+function detail(k){
+  const n=N[k];
+  const rows=Object.entries(n.det||{}).map(([a,b])=>`<dt>${a}</dt><dd>${b}</dd>`).join('');
+  const outb=E.filter(e=>e.s===k),inb=E.filter(e=>e.d===k);
+  const fl=(x)=>x.map(e=>`<dd style="grid-column:1/-1;color:var(--ink2)">${e.s===k?'→ '+e.d:'← '+e.s}${e.p?' :'+e.p:''} · ${e.lbl}</dd>`).join('');
+  D.innerHTML=`<p class="dh">${n.nm}</p><p class="dsub">${n.mt}${n.az?' · az '+n.az:''}</p>
+   <dl class="kv">${rows}
+   ${outb.length?`<dt style="grid-column:1/-1;margin-top:8px">outbound</dt>${fl(outb)}`:''}
+   ${inb.length?`<dt style="grid-column:1/-1;margin-top:8px">inbound</dt>${fl(inb)}`:''}
+   </dl>
+   ${n.ips?`<p class="hint" style="margin:10px 0 0;font-family:var(--mono);font-size:10.5px">${n.ips}</p>`:''}
+   ${n.note?`<p class="hint" style="margin:11px 0 0">${n.note}</p>`:''}`;
+}
+function edgeDetail(e){
+  D.innerHTML=`<p class="dh">${e.s} → ${e.d}</p><p class="dsub">${e.p?'port '+e.p+' · ':''}${e.lbl}</p>
+   <dl class="kv"><dt>flows</dt><dd>${e.f.toLocaleString()}</dd><dt>layer</dt><dd>${e.layer}</dd><dt>state</dt><dd>${
+   e.k==='rej'?'<span class="bad">blocked by SG</span>':e.k==='stale'?'<span class="mid">stale DNS involved</span>':'<span class="good">established</span>'}</dd></dl>
+   ${e.info?`<p class="hint" style="margin:11px 0 0">${e.info}</p>`:''}`;
+}
+
+/* ---- findings ---- */
+const FL=document.getElementById('findings');
+F.forEach(f=>{
+  const d=document.createElement('div');
+  d.className='f'; d.tabIndex=0; d.setAttribute('role','button'); d.dataset.id=f.id;
+  d.innerHTML=`<span class="sev ${f.sev}">${f.sev.toUpperCase()}</span>
+    <div><p class="ft">${f.t}</p><p class="fd">${f.d}</p></div>`;
+  const act=()=>{
+    document.querySelectorAll('.f').forEach(x=>x.classList.remove('sel'));
+    d.classList.add('sel'); selF=f.id; sel=null;
+    if(f.n.some(x=>N[x]&&N[x].layer==='ctl')){layers.ctl=1;syncBoxes();}
+    if(f.n.length) highlight(f.n,f.e); else clearHi();
+    D.innerHTML=`<p class="dh" style="font-size:13.5px">${f.t}</p>
+      <p class="dsub">${f.sev.toUpperCase()} · ${f.n.length} resources implicated</p>
+      <p class="hint">${f.d}</p>`;
+  };
+  d.addEventListener('click',act);
+  d.addEventListener('keydown',ev=>{if(ev.key==='Enter'||ev.key===' '){ev.preventDefault();act();}});
+  FL.appendChild(d);
+});
+
+/* ---- dns table ---- */
+const DNS=[['app',6,3,3],['auth',4,1,3],['cache',1,1,0],['db-primary',4,1,3],['db-replica',2,1,1],['syslog',1,1,0],['edge',4,4,0]];
+document.getElementById('dnstab').innerHTML=DNS.map(([s,r,l,st])=>{
+  const pct=Math.round(st/r*100);
+  const cls=pct>=75?'bad':pct>0?'mid':'good';
+  return `<tr><td class="n">${s}${s==='edge'?' <span style="color:var(--ink3)">(A)</span>':''}</td><td>${r}</td><td class="good">${l}</td>
+   <td class="${st?'bad':''}">${st}</td><td class="${cls}">${pct}%</td>
+   <td><div class="mini"><i style="width:${pct}%;background:${pct>=75?'#ff5c6c':pct>0?'#f5b942':'#3ddc97'}"></i></div></td></tr>`;
+}).join('');
+
+/* ---- controls ---- */
+document.querySelectorAll('button.opt[data-mode]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('button.opt[data-mode]').forEach(x=>x.setAttribute('aria-pressed','false'));
+    b.setAttribute('aria-pressed','true'); mode=b.dataset.mode; paint();
+  });
+});
+function syncBoxes(){
+  document.querySelectorAll('input[data-layer]').forEach(i=>{
+    i.checked=!!layers[i.dataset.layer];
+    i.closest('label').classList.toggle('off',!i.checked);
+  });
+  applyLayers();
+}
+document.querySelectorAll('input[data-layer]').forEach(i=>{
+  i.addEventListener('change',()=>{layers[i.dataset.layer]=i.checked?1:0;syncBoxes();});
+});
+document.getElementById('reset').addEventListener('click',()=>{
+  sel=null;selF=null;clearHi();
+  document.querySelectorAll('.f').forEach(x=>x.classList.remove('sel'));
+  D.innerHTML='<p class="hint">Select a node or a finding to inspect resource identity, availability-zone placement, DNS registration health and observed traffic.</p>';
+});
+paint();syncBoxes();
+</script>
+</body>
+</html>
