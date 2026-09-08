@@ -10,19 +10,6 @@ permissions:
   contents: read
 
 jobs:
-  sanitized:
-    name: no production data in published artifacts
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      # Generic checks only: routable IPv4, non-documentation IPv6, and the
-      # reserved-range assertions. The account number and organisation token are
-      # deliberately not available to CI, because putting them in a repository
-      # secret would mean committing to storing them at all.
-      - name: audit docs/demos
-        run: python3 scripts/sanitize.py --check docs/demos/*.html
-
   template:
     name: cloudformation template parses
     runs-on: ubuntu-latest

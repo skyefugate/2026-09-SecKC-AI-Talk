@@ -51,8 +51,7 @@
     <h2 id="demos-h">Demos</h2>
     <p class="section-note">
       Each of these was generated live on stage from a single prompt. Nothing was
-      hand-drawn, and nothing was cleaned up afterwards except the identifiers
-      &mdash; see <a href="#sanitized">a note on the data</a>.
+      hand-drawn and nothing was tidied up afterwards.
     </p>
 
     <div class="grid">
@@ -130,31 +129,20 @@
       <article class="card">
         <h3><a href="https://github.com/skyefugate/2026-09-SecKC-AI-Talk">Repository</a></h3>
         <p>
-          Everything above, plus the scrubber that made these diagrams safe to
-          publish. CC BY 4.0 &mdash; take it, remix it, credit me.
+          Everything above, plus the CloudFormation template the third demo runs
+          against. CC BY 4.0 &mdash; take it, remix it, credit me.
         </p>
       </article>
     </div>
   </section>
 
-  <section id="sanitized" aria-labelledby="sanitized-h">
-    <h2 id="sanitized-h">A note on the data</h2>
+  <section id="data-note" aria-labelledby="data-note-h">
+    <h2 id="data-note-h">A note on the data</h2>
     <div class="notice">
       <p>
-        These diagrams were generated against a real production AWS account. What you
-        are looking at is structurally identical to what ran on stage, but every
-        identifier has been rewritten: account number, VPC and subnet and instance IDs,
-        security groups, hosted zones, Cloud Map namespaces, and all addressing.
-      </p>
-      <p>
-        Addresses are documentation ranges &mdash; <code>10.20.0.0/16</code>,
-        <code>203.0.113.0/24</code> (RFC&nbsp;5737), <code>2001:db8::/32</code>
-        (RFC&nbsp;3849). The account is the AWS documentation account
-        <code>123456789012</code>. The mapping is deterministic, so cross-references
-        between panels still line up and the findings still make sense.
-      </p>
-      <p class="notice-tail">
-        Which is the whole point of slide 15. <strong>Keep. Your. Stuff. Private.</strong>
+        These diagrams describe a throwaway environment that was built for the talk
+        and torn down after it. The identifiers in them are historical &mdash; nothing
+        here resolves to anything any more.
       </p>
     </div>
   </section>

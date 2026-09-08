@@ -254,8 +254,6 @@ h2 {
 
 .notice p { margin: 0 0 12px; color: var(--dim); font-size: .9375rem; max-width: 76ch; }
 .notice p:last-child { margin-bottom: 0; }
-.notice-tail { color: var(--ink) !important; }
-.notice-tail strong { color: var(--info); }
 
 /* ---------- code ---------- */
 code {

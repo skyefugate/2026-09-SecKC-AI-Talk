@@ -32,14 +32,6 @@ The actual configuration behind the demos:
 
 Prompting is how I want you to *think*. Skills are how I want you to *do a thing*. MCP is how you *reach* the world. Keep those three separate and none of them has to be enormous. See **[prompts/](prompts/)**.
 
-## About the Data in Those Diagrams
-
-They were generated against a real production AWS account, so every identifier has been rewritten before publishing — account number, VPC and subnet and instance IDs, security groups, hosted zones, Cloud Map namespaces, and all addressing. Addresses are documentation ranges (RFC 5737, RFC 3849) and the account is AWS's documentation account.
-
-The mapping is deterministic, so cross-references between panels still line up and every finding still reads correctly. The structure and the conclusions are exactly what ran on stage.
-
-The scrubber is **[scripts/sanitize.py](scripts/sanitize.py)**. It takes the sensitive tokens from the environment so they never land in git, and it re-audits its own output. Which is slide 15, in a file: **Keep. Your. Stuff. Private.**
-
 ## The Point
 
 Your network is a set of highways built decades apart. Some segments predate you and everything still runs on them. Practice drifts from design — diagrams lie, configs drift, and undocumented changes live in prod forever. The signals are great for incident response and useless for understanding ordinary behavior, because there are too many of them. And validating the network against spec is so tedious that nobody does it.
