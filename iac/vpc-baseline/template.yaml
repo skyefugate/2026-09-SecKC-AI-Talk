@@ -1,0 +1,641 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Baseline dual-stack VPC for the SecKC 2026 talk. This is a deliberately
+  ordinary three-tier layout: public edge, private application tier, isolated
+  data tier, across three availability zones. It exists so the architecture
+  documentation demo has a real template to read and diagram.
+
+  Nothing here is production. Addressing uses documentation ranges only.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label: { default: Environment }
+        Parameters: [EnvironmentName, VpcCidr]
+      - Label: { default: Application tier }
+        Parameters: [AppInstanceType, AppDesiredCount]
+      - Label: { default: Data tier }
+        Parameters: [DbInstanceClass, EnableReadReplica]
+
+Parameters:
+  EnvironmentName:
+    Type: String
+    Default: acme-use2
+    Description: Prefix applied to every resource name and tag.
+    AllowedPattern: "^[a-z][a-z0-9-]{2,30}$"
+
+  VpcCidr:
+    Type: String
+    Default: 10.20.64.0/18
+    Description: IPv4 CIDR for the VPC. Documentation range by default.
+    AllowedPattern: "^([0-9]{1,3}\\.){3}[0-9]{1,3}/(1[6-9]|2[0-4])$"
+
+  AppInstanceType:
+    Type: String
+    Default: t3.small
+    AllowedValues: [t3.micro, t3.small, t3.medium, m6i.large]
+
+  AppDesiredCount:
+    Type: Number
+    Default: 3
+    MinValue: 1
+    MaxValue: 12
+    Description: Desired task count for the edge service.
+
+  DbInstanceClass:
+    Type: String
+    Default: db.t4g.medium
+    AllowedValues: [db.t4g.small, db.t4g.medium, db.r6g.large]
+
+  EnableReadReplica:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Whether to stand up a cross-AZ read replica. Turning this off is the
+      single largest blast-radius change available in this template.
+
+Conditions:
+  WantsReadReplica: !Equals [!Ref EnableReadReplica, "true"]
+
+Mappings:
+  # Subnet layout, carved out of the /18. Kept explicit rather than computed so
+  # the addressing is readable straight from the template.
+  SubnetPlan:
+    PublicA:  { Cidr: 10.20.64.0/24,  Index: 0 }
+    PublicB:  { Cidr: 10.20.65.0/24,  Index: 1 }
+    PublicC:  { Cidr: 10.20.66.0/24,  Index: 2 }
+    AppA:     { Cidr: 10.20.72.0/22,  Index: 0 }
+    AppB:     { Cidr: 10.20.76.0/22,  Index: 1 }
+    AppC:     { Cidr: 10.20.80.0/22,  Index: 2 }
+    DataA:    { Cidr: 10.20.96.0/24,  Index: 0 }
+    DataB:    { Cidr: 10.20.97.0/24,  Index: 1 }
+    DataC:    { Cidr: 10.20.98.0/24,  Index: 2 }
+
+Resources:
+
+  # ------------------------------------------------------------------ network
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCidr
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-vpc" }
+        - { Key: Environment, Value: !Ref EnvironmentName }
+
+  Ipv6Cidr:
+    Type: AWS::EC2::VPCCidrBlock
+    Properties:
+      VpcId: !Ref Vpc
+      AmazonProvidedIpv6CidrBlock: true
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-igw" }
+
+  IgwAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref Vpc
+      InternetGatewayId: !Ref InternetGateway
+
+  # Outbound-only IPv6 egress. The v4 and v6 egress paths are deliberately
+  # asymmetric here, which is exactly the sort of thing a diagram should surface.
+  EgressOnlyIgw:
+    Type: AWS::EC2::EgressOnlyInternetGateway
+    Properties:
+      VpcId: !Ref Vpc
+
+  # ------------------------------------------------------------------ subnets
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    DependsOn: Ipv6Cidr
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, PublicA, Cidr]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-a" }
+        - { Key: Tier, Value: public }
+
+  PublicSubnetB:
+    Type: AWS::EC2::Subnet
+    DependsOn: Ipv6Cidr
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, PublicB, Cidr]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-b" }
+        - { Key: Tier, Value: public }
+
+  PublicSubnetC:
+    Type: AWS::EC2::Subnet
+    DependsOn: Ipv6Cidr
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, PublicC, Cidr]
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-public-c" }
+        - { Key: Tier, Value: public }
+
+  AppSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, AppA, Cidr]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-a" }
+        - { Key: Tier, Value: application }
+
+  AppSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, AppB, Cidr]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-b" }
+        - { Key: Tier, Value: application }
+
+  AppSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, AppC, Cidr]
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-c" }
+        - { Key: Tier, Value: application }
+
+  DataSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, DataA, Cidr]
+      AvailabilityZone: !Select [0, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-data-a" }
+        - { Key: Tier, Value: data }
+
+  DataSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, DataB, Cidr]
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-data-b" }
+        - { Key: Tier, Value: data }
+
+  DataSubnetC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref Vpc
+      CidrBlock: !FindInMap [SubnetPlan, DataC, Cidr]
+      AvailabilityZone: !Select [2, !GetAZs ""]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-data-c" }
+        - { Key: Tier, Value: data }
+
+  # ------------------------------------------------------------------- egress
+  # One NAT gateway, in AZ a, shared by all three application subnets. This is
+  # the cheap option and a genuine single point of failure. Left in on purpose.
+  NatEip:
+    Type: AWS::EC2::EIP
+    DependsOn: IgwAttachment
+    Properties:
+      Domain: vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-eip" }
+
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEip.AllocationId
+      SubnetId: !Ref PublicSubnetA
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-nat-a" }
+
+  # ------------------------------------------------------------- route tables
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-rt-public" }
+
+  PublicDefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: IgwAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicDefaultRouteV6:
+    Type: AWS::EC2::Route
+    DependsOn: IgwAttachment
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationIpv6CidrBlock: ::/0
+      GatewayId: !Ref InternetGateway
+
+  PublicAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable }
+  PublicAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetB, RouteTableId: !Ref PublicRouteTable }
+  PublicAssocC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetC, RouteTableId: !Ref PublicRouteTable }
+
+  AppRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-rt-app" }
+
+  AppDefaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref AppRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway
+
+  AppDefaultRouteV6:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref AppRouteTable
+      DestinationIpv6CidrBlock: ::/0
+      EgressOnlyInternetGatewayId: !Ref EgressOnlyIgw
+
+  AppAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref AppSubnetA, RouteTableId: !Ref AppRouteTable }
+  AppAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref AppSubnetB, RouteTableId: !Ref AppRouteTable }
+  AppAssocC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref AppSubnetC, RouteTableId: !Ref AppRouteTable }
+
+  # Data tier has no default route at all. Isolated by design.
+  DataRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref Vpc
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-rt-data" }
+
+  DataAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref DataSubnetA, RouteTableId: !Ref DataRouteTable }
+  DataAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref DataSubnetB, RouteTableId: !Ref DataRouteTable }
+  DataAssocC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref DataSubnetC, RouteTableId: !Ref DataRouteTable }
+
+  # S3 reached over a gateway endpoint rather than the NAT. IPv4 only, which is
+  # its own small trap worth drawing.
+  S3Endpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
+      VpcEndpointType: Gateway
+      RouteTableIds: [!Ref AppRouteTable, !Ref DataRouteTable]
+
+  # ---------------------------------------------------------- security groups
+  EdgeSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Public load balancer. HTTPS from anywhere.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIp: 0.0.0.0/0, Description: HTTPS v4 }
+        - { IpProtocol: tcp, FromPort: 443, ToPort: 443, CidrIpv6: "::/0", Description: HTTPS v6 }
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-sg-edge" }
+
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Application tier. Only reachable from the edge.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8080
+          ToPort: 8080
+          SourceSecurityGroupId: !Ref EdgeSecurityGroup
+          Description: Edge to app
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-sg-app" }
+
+  DataSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Data tier. Only reachable from the application tier.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: App to Postgres
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-sg-data" }
+
+  # ------------------------------------------------------------- service disco
+  PrivateZone:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: !Sub "${EnvironmentName}.internal"
+      VPCs:
+        - VPCId: !Ref Vpc
+          VPCRegion: !Ref AWS::Region
+      HostedZoneConfig:
+        Comment: !Sub "Private zone for ${EnvironmentName}"
+
+  # ------------------------------------------------------------- observability
+  FlowLogRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: vpc-flow-logs.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: flow-log-delivery
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !GetAtt FlowLogGroup.Arn
+
+  FlowLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/vpc/${EnvironmentName}/flowlogs"
+      RetentionInDays: 30
+
+  VpcFlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId: !Ref Vpc
+      ResourceType: VPC
+      TrafficType: ALL
+      LogDestinationType: cloud-watch-logs
+      LogGroupName: !Ref FlowLogGroup
+      DeliverLogsPermissionArn: !GetAtt FlowLogRole.Arn
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-flowlogs" }
+
+  # --------------------------------------------------------------- edge tier
+  EdgeLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub "${EnvironmentName}-edge"
+      Type: application
+      Scheme: internet-facing
+      IpAddressType: dualstack
+      SecurityGroups: [!Ref EdgeSecurityGroup]
+      Subnets: [!Ref PublicSubnetA, !Ref PublicSubnetB, !Ref PublicSubnetC]
+      LoadBalancerAttributes:
+        - { Key: idle_timeout.timeout_seconds, Value: "60" }
+        - { Key: routing.http.drop_invalid_header_fields.enabled, Value: "true" }
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-edge" }
+        - { Key: Tier, Value: public }
+
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub "${EnvironmentName}-app"
+      VpcId: !Ref Vpc
+      Port: 8080
+      Protocol: HTTP
+      TargetType: instance
+      HealthCheckPath: /healthz
+      HealthCheckIntervalSeconds: 15
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher: { HttpCode: "200" }
+      TargetGroupAttributes:
+        - { Key: deregistration_delay.timeout_seconds, Value: "30" }
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app" }
+
+  # HTTPS listener omitted deliberately: it needs a certificate ARN, which would
+  # make this template undeployable as written. HTTP on 80 keeps it self-contained.
+  EdgeListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref EdgeLoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AppTargetGroup
+
+  # -------------------------------------------------------- application tier
+  AppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ec2.amazonaws.com }
+            Action: sts:AssumeRole
+      # Session Manager only. No inbound SSH anywhere in this template.
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore"
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app-role" }
+
+  AppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref AppInstanceRole]
+
+  AppLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: !Sub "${EnvironmentName}-app"
+      LaunchTemplateData:
+        InstanceType: !Ref AppInstanceType
+        ImageId: "{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}"
+        IamInstanceProfile: { Arn: !GetAtt AppInstanceProfile.Arn }
+        SecurityGroupIds: [!Ref AppSecurityGroup]
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+        Monitoring: { Enabled: true }
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
+        TagSpecifications:
+          - ResourceType: instance
+            Tags:
+              - { Key: Name, Value: !Sub "${EnvironmentName}-app" }
+              - { Key: Tier, Value: application }
+
+  AppAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub "${EnvironmentName}-app"
+      MinSize: "1"
+      MaxSize: "12"
+      DesiredCapacity: !Ref AppDesiredCount
+      VPCZoneIdentifier: [!Ref AppSubnetA, !Ref AppSubnetB, !Ref AppSubnetC]
+      TargetGroupARNs: [!Ref AppTargetGroup]
+      HealthCheckType: ELB
+      HealthCheckGracePeriod: 120
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppLaunchTemplate
+        Version: !GetAtt AppLaunchTemplate.LatestVersionNumber
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-app", PropagateAtLaunch: true }
+        - { Key: Tier, Value: application, PropagateAtLaunch: true }
+
+  # --------------------------------------------------------------- data tier
+  DbSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: !Sub "Isolated data subnets for ${EnvironmentName}"
+      SubnetIds: [!Ref DataSubnetA, !Ref DataSubnetB, !Ref DataSubnetC]
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-db-subnets" }
+
+  # Credentials are managed by Secrets Manager. There is no password in this file
+  # and there should never be one in yours either.
+  DbPrimary:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: !Sub "${EnvironmentName}-db-primary"
+      Engine: postgres
+      DBInstanceClass: !Ref DbInstanceClass
+      AllocatedStorage: "50"
+      StorageType: gp3
+      StorageEncrypted: true
+      MasterUsername: appadmin
+      ManageMasterUserPassword: true
+      DBSubnetGroupName: !Ref DbSubnetGroup
+      VPCSecurityGroups: [!Ref DataSecurityGroup]
+      MultiAZ: true
+      BackupRetentionPeriod: 7
+      DeletionProtection: true
+      EnableIAMDatabaseAuthentication: true
+      AutoMinorVersionUpgrade: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-db-primary" }
+        - { Key: Tier, Value: data }
+
+  # The blast-radius toggle. With this off, every read lands on the primary.
+  DbReadReplica:
+    Type: AWS::RDS::DBInstance
+    Condition: WantsReadReplica
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+    Properties:
+      DBInstanceIdentifier: !Sub "${EnvironmentName}-db-replica"
+      SourceDBInstanceIdentifier: !Ref DbPrimary
+      DBInstanceClass: !Ref DbInstanceClass
+      # Encryption is inherited from the source instance and must not be restated.
+      AutoMinorVersionUpgrade: true
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-db-replica" }
+        - { Key: Tier, Value: data }
+
+  # ------------------------------------------------------- service discovery
+  AppRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref PrivateZone
+      Name: !Sub "app.${EnvironmentName}.internal"
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt EdgeLoadBalancer.DNSName
+        HostedZoneId: !GetAtt EdgeLoadBalancer.CanonicalHostedZoneID
+        EvaluateTargetHealth: true
+
+  DbRecord:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneId: !Ref PrivateZone
+      Name: !Sub "db-primary.${EnvironmentName}.internal"
+      Type: CNAME
+      TTL: "60"
+      ResourceRecords: [!GetAtt DbPrimary.Endpoint.Address]
+
+Outputs:
+  VpcId:
+    Description: VPC identifier.
+    Value: !Ref Vpc
+    Export: { Name: !Sub "${EnvironmentName}-vpc-id" }
+
+  PublicSubnetIds:
+    Description: Public subnets, AZ a/b/c.
+    Value: !Join [",", [!Ref PublicSubnetA, !Ref PublicSubnetB, !Ref PublicSubnetC]]
+
+  AppSubnetIds:
+    Description: Application subnets, AZ a/b/c.
+    Value: !Join [",", [!Ref AppSubnetA, !Ref AppSubnetB, !Ref AppSubnetC]]
+
+  DataSubnetIds:
+    Description: Data subnets, AZ a/b/c.
+    Value: !Join [",", [!Ref DataSubnetA, !Ref DataSubnetB, !Ref DataSubnetC]]
+
+  NatGatewayId:
+    Description: The shared NAT gateway. Single point of failure for v4 egress.
+    Value: !Ref NatGateway
+
+  PrivateZoneId:
+    Description: Private hosted zone for service discovery.
+    Value: !Ref PrivateZone
+
+  EdgeDnsName:
+    Description: Public DNS name of the edge load balancer.
+    Value: !GetAtt EdgeLoadBalancer.DNSName
+
+  AppAutoScalingGroupName:
+    Description: Application tier ASG, spread across all three AZs.
+    Value: !Ref AppAutoScalingGroup
+
+  DbPrimaryEndpoint:
+    Description: Primary database endpoint.
+    Value: !GetAtt DbPrimary.Endpoint.Address
+
+  DbReplicaEndpoint:
+    Description: Read replica endpoint, or "none" when the replica is disabled.
+    Value: !If [WantsReadReplica, !GetAtt DbReadReplica.Endpoint.Address, "none"]
+
+  ReadReplicaEnabled:
+    Description: Whether the data tier has a cross-AZ read replica.
+    Value: !If [WantsReadReplica, "true", "false"]

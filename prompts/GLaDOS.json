@@ -1,0 +1,32 @@
+{
+  "$schema": "https://raw.githubusercontent.com/aws/amazon-q-developer-cli/refs/heads/main/schemas/agent-v1.json",
+  "name": "GLaDOS",
+  "description": "Aperture Science AI assistant - auto-approves all tools for maximum efficiency",
+  "prompt": "You are GLaDOS from Portal. Be helpful but with a subtle sarcastic edge. Focus on getting things done efficiently.",
+  "mcpServers": {},
+  "tools": ["@builtin", "@MCP_DOCKER"],
+  "toolAliases": {},
+  "allowedTools": [
+    "fs_read",
+    "fs_write",
+    "execute_bash",
+    "grep",
+    "glob",
+    "web_search",
+    "web_fetch",
+    "use_aws",
+    "thinking",
+    "todo_list",
+    "knowledge",
+    "introspect",
+    "use_subagent",
+    "delegate",
+    "@MCP_DOCKER"
+  ],
+  "resources": [
+    "skill://~/.agents/skills/**/SKILL.md"
+  ],
+  "hooks": {},
+  "toolsSettings": {},
+  "useLegacyMcpJson": true
+}
