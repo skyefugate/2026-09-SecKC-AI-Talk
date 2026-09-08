@@ -13,15 +13,15 @@ Generated from [`template.yaml`](./template.yaml) by [`scripts/gen-arch-docs.py`
 | Property | Value |
 |---|---|
 | VPC CIDR | 10.20.64.0/18 |
-| Resources | 52 |
+| Resources | 56 |
 | Resource types | 26 |
 | Availability zones | 3 |
 | Subnets | 9 |
 | Tiers | application, data, public |
 | Address family | dual-stack (IPv4 + IPv6) |
-| Security groups | 3 |
+| Security groups | 4 |
 | Parameters | 6 |
-| Outputs | 11 |
+| Outputs | 12 |
 
 ## Diagrams
 
@@ -61,7 +61,10 @@ flowchart LR
             InternetGateway[["acme-use2-igw<br/>internet gateway"]]
             NatGateway[["acme-use2-nat-a<br/>NAT gateway<br/>AZ a only"]]
             EgressOnlyIgw[["EgressOnlyIgw<br/>egress-only IGW"]]
+            Ec2MessagesEndpoint[/"com.amazonaws.&lt;region&gt;.ec2messages<br/>Interface endpoint<br/>private DNS<br/>ENIs in acme-use2-app-a, acme-use2-app-b, acme-use2-app-c"/]
             S3Endpoint[/"com.amazonaws.&lt;region&gt;.s3<br/>Gateway endpoint<br/>IPv4 only"/]
+            SsmEndpoint[/"com.amazonaws.&lt;region&gt;.ssm<br/>Interface endpoint<br/>private DNS<br/>ENIs in acme-use2-app-a, acme-use2-app-b, acme-use2-app-c"/]
+            SsmMessagesEndpoint[/"com.amazonaws.&lt;region&gt;.ssmmessages<br/>Interface endpoint<br/>private DNS<br/>ENIs in acme-use2-app-a, acme-use2-app-b, acme-use2-app-c"/]
         end
     end
     AppSubnetA --> AppRouteTable
@@ -91,7 +94,7 @@ flowchart LR
     class AppSubnetA,AppSubnetB,AppSubnetC appTier;
     class DataSubnetA,DataSubnetB,DataSubnetC dataTier;
     class internet ext;
-    class EgressOnlyIgw,InternetGateway,NatGateway,S3Endpoint gw;
+    class Ec2MessagesEndpoint,EgressOnlyIgw,InternetGateway,NatGateway,S3Endpoint,SsmEndpoint,SsmMessagesEndpoint gw;
     class PublicSubnetA,PublicSubnetB,PublicSubnetC publicTier;
     class AppRouteTable,DataRouteTable,PublicRouteTable rt;
 ```
@@ -105,10 +108,12 @@ flowchart LR
     AppSecurityGroup["acme-use2-sg-app<br/>Application tier. Only reachable from the edge.<br/>attached to: acme-use2-app"]
     DataSecurityGroup["acme-use2-sg-data<br/>Data tier. Only reachable from the application tier.<br/>attached to: acme-use2-db-primary"]
     EdgeSecurityGroup["acme-use2-sg-edge<br/>Public load balancer. HTTPS from anywhere.<br/>attached to: acme-use2-edge"]
+    EndpointSecurityGroup["acme-use2-sg-endpoints<br/>VPC interface endpoints. HTTPS from the application tier.<br/>attached to: Ec2MessagesEndpoint, SsmEndpoint, SsmMessagesEndpoint"]
     EdgeSecurityGroup -->|"tcp 8080"| AppSecurityGroup
     AppSecurityGroup -->|"tcp 5432"| DataSecurityGroup
     ext_any_ipv4 -->|"tcp 443"| EdgeSecurityGroup
     ext_any_ipv6 -->|"tcp 443"| EdgeSecurityGroup
+    AppSecurityGroup -->|"tcp 443"| EndpointSecurityGroup
     classDef ext fill:#f9fafb,stroke:#9ca3af,color:#374151,stroke-dasharray: 4 3;
     class ext_any_ipv4,ext_any_ipv6 ext;
 ```
@@ -182,9 +187,12 @@ Arrows point from a resource to the resources it references. Red cylinders hold 
 
 ### VPC endpoints
 
-| Endpoint | Service | Type | Route tables | Subnets |
-|---|---|---|---|---|
-| `S3Endpoint` | `com.amazonaws.<region>.s3` | Gateway | `AppRouteTable`, `DataRouteTable` | — |
+| Endpoint | Service | Type | Private DNS | Route tables | Subnets |
+|---|---|---|---|---|---|
+| `Ec2MessagesEndpoint` | `com.amazonaws.<region>.ec2messages` | Interface | yes | — | `AppSubnetA`, `AppSubnetB`, `AppSubnetC` |
+| `S3Endpoint` | `com.amazonaws.<region>.s3` | Gateway | no | `AppRouteTable`, `DataRouteTable` | — |
+| `SsmEndpoint` | `com.amazonaws.<region>.ssm` | Interface | yes | — | `AppSubnetA`, `AppSubnetB`, `AppSubnetC` |
+| `SsmMessagesEndpoint` | `com.amazonaws.<region>.ssmmessages` | Interface | yes | — | `AppSubnetA`, `AppSubnetB`, `AppSubnetC` |
 
 ## Security groups
 
@@ -194,6 +202,7 @@ Arrows point from a resource to the resources it references. Red cylinders hold 
 | `acme-use2-sg-data` | `acme-use2-sg-app` | tcp/5432 | App to Postgres | `DbPrimary` |
 | `acme-use2-sg-edge` | `0.0.0.0/0` | tcp/443 | HTTPS v4 | `EdgeLoadBalancer` |
 | `acme-use2-sg-edge` | `::/0` | tcp/443 | HTTPS v6 | `EdgeLoadBalancer` |
+| `acme-use2-sg-endpoints` | `acme-use2-sg-app` | tcp/443 | App to interface endpoints | `Ec2MessagesEndpoint`, `SsmEndpoint`, `SsmMessagesEndpoint` |
 
 ## Parameters
 
@@ -227,6 +236,7 @@ Arrows point from a resource to the resources it references. Red cylinders hold 
 | `DbPrimaryEndpoint` | Primary database endpoint. | `DbPrimary.Endpoint.Address` | — |
 | `DbReplicaEndpoint` | Read replica endpoint, or "none" when the replica is disabled. | `if WantsReadReplica: DbReadReplica.Endpoint.Address else none` | — |
 | `ReadReplicaEnabled` | Whether the data tier has a cross-AZ read replica. | `if WantsReadReplica: true else false` | — |
+| `SsmEndpointIds` | Interface endpoints carrying Session Manager traffic. With these present the agent no longer depends on the NAT gateway for its control plane. | `SsmEndpoint,SsmMessagesEndpoint,Ec2MessagesEndpoint` | — |
 
 ## Observations
 
@@ -251,12 +261,12 @@ Arrows point from a resource to the resources it references. Red cylinders hold 
 | `AWS::EC2::NatGateway` | 1 | `NatGateway` |
 | `AWS::EC2::Route` | 4 | `AppDefaultRoute`, `AppDefaultRouteV6`, `PublicDefaultRoute`, `PublicDefaultRouteV6` |
 | `AWS::EC2::RouteTable` | 3 | `AppRouteTable`, `DataRouteTable`, `PublicRouteTable` |
-| `AWS::EC2::SecurityGroup` | 3 | `AppSecurityGroup`, `DataSecurityGroup`, `EdgeSecurityGroup` |
+| `AWS::EC2::SecurityGroup` | 4 | `AppSecurityGroup`, `DataSecurityGroup`, `EdgeSecurityGroup`, `EndpointSecurityGroup` |
 | `AWS::EC2::Subnet` | 9 | `AppSubnetA`, `AppSubnetB`, `AppSubnetC`, `DataSubnetA`, `DataSubnetB`, `DataSubnetC`, `PublicSubnetA`, `PublicSubnetB`, `PublicSubnetC` |
 | `AWS::EC2::SubnetRouteTableAssociation` | 9 | `AppAssocA`, `AppAssocB`, `AppAssocC`, `DataAssocA`, `DataAssocB`, `DataAssocC`, `PublicAssocA`, `PublicAssocB`, `PublicAssocC` |
 | `AWS::EC2::VPC` | 1 | `Vpc` |
 | `AWS::EC2::VPCCidrBlock` | 1 | `Ipv6Cidr` |
-| `AWS::EC2::VPCEndpoint` | 1 | `S3Endpoint` |
+| `AWS::EC2::VPCEndpoint` | 4 | `Ec2MessagesEndpoint`, `S3Endpoint`, `SsmEndpoint`, `SsmMessagesEndpoint` |
 | `AWS::EC2::VPCGatewayAttachment` | 1 | `IgwAttachment` |
 | `AWS::ElasticLoadBalancingV2::Listener` | 1 | `EdgeListener` |
 | `AWS::ElasticLoadBalancingV2::LoadBalancer` | 1 | `EdgeLoadBalancer` |
@@ -275,4 +285,4 @@ Arrows point from a resource to the resources it references. Red cylinders hold 
 
 A GitHub Actions workflow (`.github/workflows/architecture-docs.yml`) runs the generator on every push that touches the IaC, then commits the result. The document is a deterministic function of the template — no timestamps — so a run only produces a commit when the architecture genuinely changed.
 
-Source template SHA-256: `8bd82c346905eec5ec0bd9a38cfa175cd48a97ec5646bc62e98274356e7868f4`
+Source template SHA-256: `09bb3a6d4f222401a87840ade14635151010146a8f2ed443f092427e8e80c686`
