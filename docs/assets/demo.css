@@ -1,0 +1,422 @@
+/* ===========================================================================
+   Shared shell for the demo artifacts.
+
+   Both demos are AI-generated one-shot outputs, but they should read as one
+   product: same palette, same chrome, same "click a thing -> evidence appears
+   in the right rail" interaction, same responsive rules.
+
+   Layout contract
+   ---------------
+   .demo-nav      cross-links (talk index + sibling demo)
+   .panel         header / controls / stage / footer blocks, hairline joined
+   .facts         the numeric scoreboard strip
+   .split         main visual (left) + .rail inspector (right)
+   .rail          scrollable evidence panel, sticky on wide screens
+
+   Scaling rules
+   -------------
+   - one container width token, applied to header AND body so nothing is
+     full-bleed against capped content
+   - every grid child gets min-width:0 so long mono strings cannot force the
+     page wider than the viewport
+   - the SVG stage keeps the diagram's aspect ratio instead of stretching to
+     the sidebar's height, which is what produced the large empty gap
+   - below the breakpoint the stage scrolls horizontally at a legible minimum
+     width rather than shrinking the labels into unreadability
+   =========================================================================== */
+
+:root {
+  --bg: #0b0f14;
+  --bg2: #111823;
+  --panel: #0f1620;
+  --panel2: #161e2a;
+  --line: #1e2a38;
+  --line2: #2b3a4d;
+
+  --ink: #dfe7ef;
+  --ink2: #8fa3b8;
+  --ink3: #5d7288;
+
+  --ok: #3ddc97;
+  --warn: #f5b942;
+  --crit: #ff5c6c;
+  --info: #4db8ff;
+  --acc: #7c8cff;
+
+  --az-a: #4db8ff;
+  --az-b: #c58cff;
+  --az-c: #3ddc97;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+
+  --maxw: 1440px;
+  --pad: 22px;
+  --r: 5px;
+
+  /* stage sizing */
+  --stage-min: 900px;
+  --rail-w: 340px;
+}
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  /* no overflow-x:hidden here on purpose: it masks real layout bugs and
+     breaks position:sticky. Long mono strings are handled with
+     overflow-wrap:anywhere and per-block scroll containers instead. */
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: -1px -1px;
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(120% 80% at 20% 0%, rgba(124, 140, 255, .10), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap {
+  position: relative;
+  z-index: 1;
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 18px var(--pad) 56px;
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  background: var(--info);
+  color: #04121f;
+  padding: 10px 16px;
+  font: 600 13px var(--mono);
+  z-index: 60;
+}
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---------------- cross-demo nav ---------------- */
+.demo-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.demo-nav a {
+  color: var(--ink2);
+  text-decoration: none;
+  border: 1px solid var(--line2);
+  background: var(--bg2);
+  padding: 5px 11px;
+  border-radius: var(--r);
+  white-space: nowrap;
+}
+.demo-nav a:hover { color: var(--ink); border-color: var(--ink3); }
+.demo-nav a[aria-current="page"] {
+  background: rgba(124, 140, 255, .16);
+  border-color: var(--acc);
+  color: #eaefff;
+}
+.demo-nav .spacer { flex: 1 1 auto; }
+.demo-nav .tagline { color: var(--ink3); }
+
+/* ---------------- panels ---------------- */
+.panel {
+  border: 1px solid var(--line2);
+  background: var(--panel);
+}
+/* hairline-join stacked panels so the chrome reads as one instrument */
+.panel + .panel { border-top: 0; }
+
+.phead { padding: 18px 20px; background: linear-gradient(180deg, rgba(17, 24, 35, .96), rgba(11, 15, 20, .9)); }
+
+h1 {
+  margin: 0 0 5px;
+  font-size: clamp(17px, 2.1vw, 20px);
+  letter-spacing: -.2px;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+h1 .dim { color: var(--ink3); font-weight: 400; }
+
+.sub {
+  margin: 0;
+  color: var(--ink2);
+  font-size: 12.5px;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.sub.q { color: var(--ink3); margin-top: 3px; }
+
+.stitle {
+  font: 600 10px var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 11px 15px 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+h2.sec {
+  margin: 0;
+  font: 600 10px var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  padding: 11px 15px 9px;
+  border-bottom: 1px solid var(--line);
+}
+
+/* ---------------- facts strip ---------------- */
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(108px, 1fr));
+  gap: 1px;
+  background: var(--line);
+  border-top: 1px solid var(--line);
+}
+.fact { background: var(--panel); padding: 9px 13px; min-width: 0; }
+.fact b {
+  display: block;
+  font-family: var(--mono);
+  font-size: clamp(15px, 1.5vw, 17px);
+  font-weight: 600;
+  line-height: 1.3;
+}
+.fact span {
+  display: block;
+  font-size: 9.5px;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+.fact.c b { color: var(--crit); }
+.fact.w b { color: var(--warn); }
+.fact.g b { color: var(--ok); }
+.fact.i b { color: var(--info); }
+
+/* ---------------- controls ---------------- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 22px;
+  align-items: flex-start;
+  padding: 12px 20px;
+}
+.cgroup { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.clabel { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink3); }
+.opts { display: flex; flex-wrap: wrap; gap: 6px; }
+
+button.opt, label.opt {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink2);
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: var(--r);
+  padding: 5px 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  /* comfortable tap target without changing the visual density */
+  min-height: 28px;
+}
+button.opt:hover, label.opt:hover { border-color: var(--ink3); color: var(--ink); }
+button.opt[aria-pressed=true] { background: rgba(124, 140, 255, .16); border-color: var(--acc); color: #eaefff; }
+label.opt input { accent-color: var(--acc); margin: 0; width: 12px; height: 12px; }
+label.opt.off { opacity: .5; }
+
+:focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
+
+/* ---------------- split: visual + inspector rail ---------------- */
+.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--rail-w);
+  gap: 1px;
+  background: var(--line);
+}
+.split > * { min-width: 0; }
+
+.rail {
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* the rail's body is the only scroll region, so nothing gets clipped
+   mid-sentence the way the old fixed max-height did */
+.rail-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.detail { padding: 14px 15px; border-bottom: 1px solid var(--line); }
+.dh { font-size: 15px; font-weight: 650; margin: 0 0 3px; overflow-wrap: anywhere; }
+.dsub { font-family: var(--mono); font-size: 11px; color: var(--ink3); margin: 0 0 11px; overflow-wrap: anywhere; }
+.hint { color: var(--ink3); font-size: 12px; line-height: 1.55; }
+
+.kv { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 4px 10px; font-size: 11.5px; font-family: var(--mono); margin: 0; }
+.kv dt { color: var(--ink3); }
+.kv dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+
+/* ---------------- severity ---------------- */
+.sev {
+  font: 700 8.5px var(--mono);
+  letter-spacing: .06em;
+  padding: 2.5px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.sev.crit { background: rgba(255, 92, 108, .16); color: var(--crit); border: 1px solid rgba(255, 92, 108, .4); }
+.sev.high { background: rgba(245, 185, 66, .14); color: var(--warn); border: 1px solid rgba(245, 185, 66, .38); }
+.sev.med  { background: rgba(77, 184, 255, .13); color: var(--info); border: 1px solid rgba(77, 184, 255, .35); }
+.sev.low  { background: rgba(143, 163, 184, .12); color: var(--ink2); border: 1px solid var(--line2); }
+.sev.ok   { background: rgba(61, 220, 151, .14); color: var(--ok); border: 1px solid rgba(61, 220, 151, .4); }
+
+/* ---------------- findings list (shared by both demos) ---------------- */
+.f {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 15px;
+  cursor: pointer;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+.f:hover { background: #131c27; }
+.f.sel { background: #16202e; box-shadow: inset 2px 0 0 var(--acc); }
+.ft { font-size: 12.2px; line-height: 1.45; font-weight: 550; margin: 0 0 3px; }
+.fd { font-size: 11.3px; line-height: 1.5; color: var(--ink2); margin: 0; overflow-wrap: anywhere; }
+.fd code, .hint code {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--warn);
+  background: rgba(245, 185, 66, .08);
+  padding: 0 3px;
+  border-radius: 3px;
+}
+
+/* ---------------- legend / tables / footer ---------------- */
+.foot {
+  padding: 15px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+.foot > * { min-width: 0; }
+
+.leg h4, .foot h4 {
+  margin: 0 0 8px;
+  font: 600 9.5px var(--mono);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink3);
+}
+.li { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink2); margin-bottom: 5px; font-family: var(--mono); }
+.sw { width: 22px; height: 3px; flex: none; border-radius: 2px; }
+.dot { width: 9px; height: 9px; flex: none; border: 1.5px solid; }
+
+.tscroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+th {
+  text-align: left;
+  color: var(--ink3);
+  font-weight: 600;
+  padding: 5px 8px 5px 0;
+  border-bottom: 1px solid var(--line2);
+  font-size: 9.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--line); color: var(--ink2); vertical-align: top; }
+td.n { color: var(--ink); font-weight: 600; }
+
+.bad { color: var(--crit); }
+.good { color: var(--ok); }
+.mid { color: var(--warn); }
+
+.mini { height: 5px; background: var(--line); position: relative; min-width: 52px; border-radius: 3px; overflow: hidden; }
+.mini i { position: absolute; inset: 0 auto 0 0; background: var(--crit); }
+
+.note { margin-top: 12px; color: var(--ink3); font-size: 11px; line-height: 1.6; font-family: var(--mono); overflow-wrap: anywhere; }
+.note:first-child { margin-top: 0; }
+
+.tag {
+  display: inline-block;
+  font: 10px var(--mono);
+  color: var(--ink3);
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin: 0 3px 3px 0;
+}
+
+pre {
+  background: #080c11;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 11px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  color: #a9c7e8;
+  margin: 0 0 10px;
+}
+
+code { font-family: var(--mono); }
+
+a { color: var(--info); text-underline-offset: 2px; }
+a:hover { color: #7ccbff; }
+
+/* ---------------- responsive ---------------- */
+@media (max-width: 1180px) {
+  :root { --rail-w: 300px; }
+}
+
+@media (max-width: 1020px) {
+  :root { --pad: 16px; }
+  .split { grid-template-columns: minmax(0, 1fr); }
+  /* rail stops being a sidebar and becomes a normal stacked block */
+  .rail { max-height: none; }
+  .rail-scroll { overflow-y: visible; max-height: none; }
+}
+
+@media (max-width: 560px) {
+  :root { --pad: 12px; }
+  body { font-size: 14px; }
+  .phead, .controls, .foot { padding-left: 14px; padding-right: 14px; }
+  .facts { grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
+}

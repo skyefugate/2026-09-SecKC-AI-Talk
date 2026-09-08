@@ -4,176 +4,180 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Blast Radius Analysis — acme-use2 (123456789012)</title>
+<link rel="stylesheet" href="../assets/demo.css">
 <style>
-  :root{
-    --bg:#0b0f14; --panel:#121821; --panel2:#171f2b; --line:#243040;
-    --ink:#e6edf3; --dim:#8b9bb0; --muted:#5f6f84;
-    --sev1:#ff3b30; --sev2:#ff9500; --sev3:#ffd60a; --ok:#30d158; --info:#0a84ff;
-    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);
-       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
-  header{padding:28px 32px 20px;border-bottom:1px solid var(--line);
-         background:linear-gradient(180deg,#141c27,#0b0f14)}
-  h1{margin:0 0 6px;font-size:22px;letter-spacing:-.2px}
-  .sub{color:var(--dim);font-size:13px;font-family:var(--mono)}
-  .wrap{max-width:1280px;margin:0 auto;padding:24px 32px 64px}
-  h2{font-size:15px;text-transform:uppercase;letter-spacing:.9px;color:var(--dim);
-     margin:34px 0 14px;font-weight:600}
+/* page-specific: AZ topology cards, flow trace, risk table.
+   Shell chrome, severity pills and the rail live in demo.css. */
 
-  /* ---- scoreboard ---- */
-  .score{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
-  .card .n{font-size:26px;font-weight:700;font-family:var(--mono)}
-  .card .l{color:var(--dim);font-size:11.5px;text-transform:uppercase;letter-spacing:.6px;margin-top:2px}
+.content{background:var(--panel);min-width:0}
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;padding:12px 15px 0;font-size:11.5px;color:var(--ink2);font-family:var(--mono)}
+.legend-row span{display:flex;align-items:center;gap:6px}
+.legend-row .rdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
 
-  /* ---- AZ topology ---- */
-  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:0 0 14px;font-size:12px;color:var(--dim)}
-  .legend span{display:flex;align-items:center;gap:6px}
-  .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.azgrid{
+  display:grid;
+  /* auto-fit + minmax(0,...) so narrow screens collapse cleanly instead of
+     pushing the cards past the viewport edge */
+  grid-template-columns:repeat(auto-fit,minmax(min(268px,100%),1fr));
+  gap:12px;
+  padding:14px 15px;
+}
+.azgrid > *{min-width:0}
+.az{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.az.hot{border-color:rgba(255,92,108,.55);box-shadow:0 0 0 1px rgba(255,92,108,.18)}
+.az h3{margin:0 0 3px;font:12.5px var(--mono);letter-spacing:.3px;color:var(--ink)}
+.aznote{font-size:11px;color:var(--ink3);margin-bottom:10px;line-height:1.45}
 
-  .azgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
-  .az{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;
-      transition:border-color .18s,box-shadow .18s}
-  .az.hot{border-color:var(--sev1);box-shadow:0 0 0 1px rgba(255,59,48,.35),0 0 26px -6px rgba(255,59,48,.5)}
-  .az h3{margin:0 0 4px;font-size:13.5px;font-family:var(--mono);letter-spacing:.3px}
-  .aznote{font-size:11.5px;color:var(--muted);margin-bottom:10px}
+.node{
+  border:1px solid var(--line2);border-left-width:3px;border-radius:var(--r);
+  background:var(--panel2);padding:8px 10px;margin-bottom:8px;cursor:pointer;
+  transition:background .16s,border-color .16s;min-width:0;
+}
+.node:last-child{margin-bottom:0}
+.node:hover{background:#1d2735;border-color:var(--ink3)}
+.node.sel{background:#16202e;border-color:var(--acc);box-shadow:inset 2px 0 0 var(--acc)}
+.node .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.node .nm{font:12.5px var(--mono);color:var(--ink)}
+.node .meta{font-size:10.5px;color:var(--ink3);margin-top:3px;font-family:var(--mono);overflow-wrap:anywhere}
+.node[data-sev="1"]{border-left-color:var(--crit)}
+.node[data-sev="2"]{border-left-color:var(--warn)}
+.node[data-sev="3"]{border-left-color:var(--info)}
+.node[data-sev="ok"]{border-left-color:var(--ok)}
 
-  .node{border:1px solid var(--line);border-left-width:3px;border-radius:8px;
-        background:var(--panel2);padding:9px 11px;margin-bottom:8px;cursor:pointer;
-        transition:transform .12s,background .16s,border-color .16s;position:relative}
-  .node:hover{transform:translateX(3px);background:#1d2735}
-  .node:focus-visible{outline:2px solid var(--info);outline-offset:2px}
-  .node .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-  .node .nm{font-family:var(--mono);font-size:12.5px}
-  .node .meta{font-size:11px;color:var(--muted);margin-top:3px;font-family:var(--mono)}
-  .node[data-sev="1"]{border-left-color:var(--sev1)}
-  .node[data-sev="2"]{border-left-color:var(--sev2)}
-  .node[data-sev="3"]{border-left-color:var(--sev3)}
-  .node[data-sev="ok"]{border-left-color:var(--ok)}
+.bar{display:flex;height:4px;border-radius:3px;overflow:hidden;margin-top:7px;background:#0c1218}
+.bar i{display:block;height:100%}
+.bar .live{background:var(--ok)}
+.bar .dead{background:var(--crit)}
 
-  .pill{font-size:9.5px;font-weight:700;letter-spacing:.5px;padding:2px 6px;border-radius:20px;
-        text-transform:uppercase;white-space:nowrap}
-  .p1{background:rgba(255,59,48,.16);color:#ff6a61;border:1px solid rgba(255,59,48,.4)}
-  .p2{background:rgba(255,149,0,.15);color:#ffab3d;border:1px solid rgba(255,149,0,.4)}
-  .p3{background:rgba(255,214,10,.14);color:#e8c40a;border:1px solid rgba(255,214,10,.38)}
-  .pok{background:rgba(48,209,88,.14);color:#4ede77;border:1px solid rgba(48,209,88,.4)}
+.flow{
+  margin:14px 15px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+  overflow-x:auto;line-height:1.85;
+}
+.flow b{color:var(--ink);font-weight:600}
 
-  /* health bar: live vs stale DNS answers */
-  .bar{display:flex;height:5px;border-radius:3px;overflow:hidden;margin-top:7px;background:#0c1218}
-  .bar i{display:block;height:100%}
-  .bar .live{background:var(--ok)}
-  .bar .dead{background:var(--sev1)}
+.risk{padding:0 15px 15px}
+.risk tbody tr{cursor:pointer}
+.risk tbody tr:hover{background:#131c27}
+.risk tbody tr.sel{background:#16202e;box-shadow:inset 2px 0 0 var(--acc)}
+.risk td{padding:8px 10px 8px 0}
+.risk td.rk{font-family:var(--mono);font-weight:700;color:var(--crit);width:28px}
+.risk td b{color:var(--ink);font-weight:600}
+.rad{font-size:10.5px;color:var(--ink3);line-height:1.5}
 
-  /* ---- detail drawer ---- */
-  .drawer{position:fixed;top:0;right:0;width:min(560px,94vw);height:100%;background:#0e141c;
-          border-left:1px solid var(--line);transform:translateX(102%);
-          transition:transform .26s cubic-bezier(.4,0,.2,1);z-index:50;overflow-y:auto;
-          box-shadow:-18px 0 50px -18px rgba(0,0,0,.85)}
-  .drawer.open{transform:translateX(0)}
-  .dhead{padding:20px 22px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#0e141c;z-index:2}
-  .dhead h3{margin:0;font-size:16px;font-family:var(--mono)}
-  .dbody{padding:20px 22px}
-  .dbody h4{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--dim);
-            margin:20px 0 7px;font-weight:600}
-  .dbody h4:first-child{margin-top:0}
-  .dbody p{margin:0 0 10px;font-size:13.5px;color:#cdd8e4}
-  .close{position:absolute;top:16px;right:18px;background:none;border:1px solid var(--line);
-         color:var(--dim);border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:15px}
-  .close:hover{color:var(--ink);border-color:var(--dim)}
-  pre{background:#080c11;border:1px solid var(--line);border-radius:7px;padding:11px;
-      overflow-x:auto;font-family:var(--mono);font-size:11.5px;color:#a9c7e8;margin:0 0 10px}
-  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;
-         transition:opacity .26s;z-index:40}
-  .scrim.on{opacity:1;pointer-events:auto}
+/* the rail is sticky here because the left column is a long document rather
+   than a fixed-height diagram */
+.rail{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px)}
+.rail h4{
+  margin:16px 0 6px;font:600 9.5px var(--mono);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);
+}
+.rail .detail{border-bottom:0}
+.rail .hint{margin:0 0 8px}
 
-  /* ---- ranked risk table ---- */
-  table{width:100%;border-collapse:collapse;font-size:13px}
-  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-  th{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.7px}
-  tbody tr{cursor:pointer}
-  tbody tr:hover{background:var(--panel2)}
-  td.rk{font-family:var(--mono);font-weight:700;color:var(--sev1);width:34px}
-  .rad{font-family:var(--mono);font-size:11.5px;color:var(--dim)}
-
-  .flow{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;
-        font-family:var(--mono);font-size:12px;color:var(--dim);overflow-x:auto;line-height:1.9}
-  .flow b{color:var(--ink);font-weight:600}
-  .flow .bad{color:#ff6a61}
-  .flow .good{color:#4ede77}
-  footer{color:var(--muted);font-size:11.5px;border-top:1px solid var(--line);
-         margin-top:44px;padding-top:16px;font-family:var(--mono)}
+@media(max-width:1020px){
+  .rail{position:static;max-height:none}
+}
 </style>
 </head>
 <body>
-
-<header>
-  <h1>Blast Radius Analysis — <code>acme-use2</code></h1>
-  <div class="sub">account 123456789012 · us-east-2 · vpc-069cd5268c09419ce (10.20.64.0/18) · single region, single VPC</div>
-</header>
-
+<a class="skip" href="#content">Skip to content</a>
 <div class="wrap">
 
-  <div class="score">
-    <div class="card"><div class="n" style="color:var(--sev1)">0</div><div class="l">EBS snapshots</div></div>
-    <div class="card"><div class="n" style="color:var(--sev1)">0</div><div class="l">Backup plans</div></div>
-    <div class="card"><div class="n" style="color:var(--sev1)">0</div><div class="l">Load balancers</div></div>
-    <div class="card"><div class="n" style="color:var(--sev2)">0</div><div class="l">Route53 health checks</div></div>
-    <div class="card"><div class="n" style="color:var(--sev2)">11</div><div class="l">Stale DNS answers</div></div>
-    <div class="card"><div class="n">10</div><div class="l">ASGs, all min=max=1</div></div>
+<nav class="demo-nav" aria-label="Demo navigation">
+  <a href="../index.html">&larr; Talk index</a>
+  <a href="network-map.html">1 &middot; Network map</a>
+  <a href="blast-radius.html" aria-current="page">2 &middot; Blast radius</a>
+  <span class="spacer"></span>
+  <span class="tagline">generated live on stage &middot; synthetic environment</span>
+</nav>
+
+<header class="panel">
+  <div class="phead">
+    <h1>Blast Radius Analysis <span class="dim">/ acme-use2</span></h1>
+    <p class="sub">account 123456789012 &middot; us-east-2 &middot; vpc-069cd5268c09419ce (10.20.64.0/18)</p>
+    <p class="sub q">read-only enumeration 2026-09-08 &middot; single region, single VPC &middot; 10 ASGs</p>
   </div>
-
-  <h2>Topology by availability zone</h2>
-  <div class="legend">
-    <span><i class="dot" style="background:var(--sev1)"></i> Catastrophic</span>
-    <span><i class="dot" style="background:var(--sev2)"></i> Severe</span>
-    <span><i class="dot" style="background:var(--sev3)"></i> Elevated</span>
-    <span><i class="dot" style="background:var(--ok)"></i> Healthy</span>
-    <span style="color:var(--muted)">— click any node for evidence</span>
+  <div class="facts">
+    <div class="fact c"><b>0</b><span>EBS snapshots</span></div>
+    <div class="fact c"><b>0</b><span>Backup plans</span></div>
+    <div class="fact c"><b>0</b><span>Load balancers</span></div>
+    <div class="fact w"><b>0</b><span>R53 health checks</span></div>
+    <div class="fact w"><b>11</b><span>Stale DNS answers</span></div>
+    <div class="fact i"><b>10</b><span>ASGs min=max=1</span></div>
   </div>
+</header>
 
-  <div class="azgrid" id="azgrid"></div>
+<div class="panel split">
+  <div class="content" id="content">
 
-  <h2>Request path &amp; failure propagation</h2>
-  <div class="flow">
-<b>internet</b> → 4 × ECS edge task <span class="good">(public IPs, ECS-managed, 4/4 healthy)</span><br>
-&nbsp;&nbsp;↓ resolves <b>app.acme.use2.internal</b> — AAAA, TTL 15, multivalue, <span class="bad">no health check</span><br>
-&nbsp;&nbsp;↓ <span class="bad">6 answers returned · 3 live · 3 point at terminated instances → ~50% connection failure</span><br>
+    <h2 class="sec">Topology by availability zone</h2>
+    <div class="legend-row">
+      <span><i class="rdot" style="background:var(--crit)"></i> catastrophic</span>
+      <span><i class="rdot" style="background:var(--warn)"></i> severe</span>
+      <span><i class="rdot" style="background:var(--info)"></i> elevated</span>
+      <span><i class="rdot" style="background:var(--ok)"></i> healthy</span>
+      <span style="color:var(--ink3)">&mdash; select anything for evidence</span>
+    </div>
+    <div class="azgrid" id="azgrid"></div>
+
+    <h2 class="sec">Request path &amp; failure propagation</h2>
+    <div class="flow">
+<b>internet</b> &rarr; 4 &times; ECS edge task <span class="good">(public IPs, ECS-managed, 4/4 healthy)</span><br>
+&nbsp;&nbsp;&darr; resolves <b>app.acme.use2.internal</b> &mdash; AAAA, TTL 15, multivalue, <span class="bad">no health check</span><br>
+&nbsp;&nbsp;&darr; <span class="bad">6 answers returned &middot; 3 live &middot; 3 point at terminated instances &rarr; ~50% connection failure</span><br>
 <b>app tier</b> (app-1/2/3, one per AZ)<br>
-&nbsp;&nbsp;↓ resolves <b>auth.acme.use2.internal</b><br>
-&nbsp;&nbsp;↓ <span class="bad">4 answers returned · 0 live → auth unreachable by name, 100% failure</span><br>
-&nbsp;&nbsp;↓ resolves <b>db-primary.acme.use2.internal</b><br>
-&nbsp;&nbsp;↓ <span class="bad">4 answers returned · 1 live → ~75% of writes fail; no failover to replica</span><br>
-&nbsp;&nbsp;↓ resolves <b>cache</b> → 1 answer, live, <span class="bad">single instance in us-east-2a, no replica</span><br>
+&nbsp;&nbsp;&darr; resolves <b>auth.acme.use2.internal</b><br>
+&nbsp;&nbsp;&darr; <span class="bad">4 answers returned &middot; 0 live &rarr; auth unreachable by name, 100% failure</span><br>
+&nbsp;&nbsp;&darr; resolves <b>db-primary.acme.use2.internal</b><br>
+&nbsp;&nbsp;&darr; <span class="bad">4 answers returned &middot; 1 live &rarr; ~75% of writes fail; no failover to replica</span><br>
+&nbsp;&nbsp;&darr; resolves <b>cache</b> &rarr; 1 answer, live, <span class="bad">single instance in us-east-2a, no replica</span><br>
 <br>
-<span style="color:var(--muted)">egress: no NAT gateway. IPv4 outbound = S3 gateway endpoint only.<br>
-IPv6 outbound via eigw-0ab045701000f0e21. No SSM/interface endpoints → no Session Manager break-glass.</span>
+<span style="color:var(--ink3)">egress: no NAT gateway. IPv4 outbound = S3 gateway endpoint only.<br>
+IPv6 outbound via eigw-0ab045701000f0e21. No SSM/interface endpoints &rarr; no Session Manager break-glass.</span>
+    </div>
+
+    <h2 class="sec">Failure points ranked by blast radius</h2>
+    <div class="risk">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>#</th><th>Failure point</th><th>Radius if it fails</th><th>Recoverable?</th></tr></thead>
+          <tbody id="risktable"></tbody>
+        </table>
+      </div>
+    </div>
+
   </div>
 
-  <h2>Failure points ranked by blast radius</h2>
-  <table>
-    <thead><tr><th>#</th><th>Failure point</th><th>Radius if it fails</th><th>Recoverable?</th></tr></thead>
-    <tbody id="risktable"></tbody>
-  </table>
-
-  <footer>
-    Generated from live AWS API reads on 2026-09-08 · read-only enumeration (ec2, rds, elbv2, ecs, eks,
-    lambda, autoscaling, route53, servicediscovery, backup, s3).<br>
-    CloudFormation describe/list denied by permissions boundary <code>DemoAdminBoundary</code> — stack
-    templates were not inspected; findings derive from deployed resource state only.
-  </footer>
+  <aside class="rail" id="rail" aria-label="Evidence inspector">
+    <div class="rail-body">
+      <div class="stitle">Inspector</div>
+      <div class="rail-scroll">
+        <div class="detail" id="detail">
+          <p class="hint">Select any component, availability zone or ranked failure point to see
+          why it matters, its DNS resolution state, the raw API evidence behind the claim, and the
+          recommended fix.</p>
+        </div>
+      </div>
+    </div>
+  </aside>
 </div>
 
-<div class="scrim" id="scrim"></div>
-<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dtitle">
-  <div class="dhead">
-    <h3 id="dtitle"></h3>
-    <div class="sub" id="dsub"></div>
-    <button class="close" id="closeBtn" aria-label="Close details">×</button>
+<div class="panel foot" style="grid-template-columns:1fr">
+  <div>
+    <h4>Evidence basis &amp; limits</h4>
+    <p class="note">
+      Generated from live AWS API reads on 2026-09-08 &mdash; read-only enumeration of
+      <span class="tag">ec2</span><span class="tag">rds</span><span class="tag">elbv2</span><span class="tag">ecs</span><span class="tag">eks</span><span class="tag">lambda</span><span class="tag">autoscaling</span><span class="tag">route53</span><span class="tag">servicediscovery</span><span class="tag">backup</span><span class="tag">s3</span>.<br>
+      <b>Not verified:</b> CloudFormation describe/list is denied by permissions boundary
+      <code>DemoAdminBoundary</code>, so stack templates were not inspected &mdash; every finding
+      derives from deployed resource state only. live/dead counts are Cloud Map registered answers
+      cross-referenced against <code>ec2:DescribeInstances</code> running state.
+    </p>
   </div>
-  <div class="dbody" id="dbody"></div>
-</aside>
+</div>
+
+</div>
 
 <script>
 /* ---------------------------------------------------------------------------
@@ -416,7 +420,7 @@ ns-29a5b43aaaecd57a -> ZDC995D8D73A58542935B  created 22:57:27
     fix:"Delete the orphaned namespace and hosted zone to remove the ambiguity."}
 };
 
-/* ---------------- render AZ topology ---------------- */
+/* ---------------- render ---------------- */
 const AZ_ORDER = [
   ["us-east-2a","Correlated failure domain: only writer + only cache + only auth",true,
    ["db-primary","cache","auth","app-1"]],
@@ -424,19 +428,21 @@ const AZ_ORDER = [
    ["db-replica","app-2","syslog"]],
   ["us-east-2c","Async and observability workloads",false,
    ["app-3","batch","canary"]],
-  ["public subnets a/b/c","ECS-managed ingress — the only accurate registry",false,
+  ["public subnets a/b/c","ECS-managed ingress \u2014 the only accurate registry",false,
    ["edge"]]
 ];
-const PILL={1:"p1",2:"p2",3:"p3",ok:"pok"};
+/* map this page's 1/2/3/ok severities onto the shared pill classes */
+const PILL={1:"crit",2:"high",3:"med",ok:"ok"};
 
 document.getElementById("azgrid").innerHTML = AZ_ORDER.map(([az,note,hot,keys])=>`
   <div class="az${hot?" hot":""}">
     <h3>${az}</h3><div class="aznote">${note}</div>
     ${keys.map(k=>{
       const n=NODES[k], tot=n.live+n.dead;
-      return `<div class="node" data-sev="${n.sev}" data-key="${k}" tabindex="0" role="button">
+      return `<div class="node" data-sev="${n.sev}" data-key="${k}" tabindex="0" role="button"
+        aria-label="${k} — ${n.pill}: ${n.tag}">
         <div class="top"><span class="nm">${k}</span>
-        <span class="pill ${PILL[n.sev]}">${n.tag}</span></div>
+        <span class="sev ${PILL[n.sev]}">${n.tag}</span></div>
         <div class="meta">${n.meta}</div>
         ${tot?`<div class="bar" title="${n.live} live / ${n.dead} stale DNS answers">
           <i class="live" style="width:${n.live/tot*100}%"></i>
@@ -445,43 +451,53 @@ document.getElementById("azgrid").innerHTML = AZ_ORDER.map(([az,note,hot,keys])=
       </div>`}).join("")}
   </div>`).join("");
 
-/* ---------------- render risk table ---------------- */
 document.getElementById("risktable").innerHTML = RISKS.map(r=>`
-  <tr data-key="${r.k}" tabindex="0">
+  <tr data-key="${r.k}" tabindex="0" role="button">
     <td class="rk">${r.r}</td><td><b>${r.n}</b></td>
     <td class="rad">${r.rad}</td><td class="rad">${r.rec}</td>
   </tr>`).join("");
 
-/* ---------------- drawer ---------------- */
-const drawer=document.getElementById("drawer"), scrim=document.getElementById("scrim");
-function open(key){
-  const d = EXTRA[key] || NODES[key]; if(!d) return;
+/* ---------------- inspector rail ----------------
+   Replaces the old modal drawer so both demos share one interaction model:
+   select something on the left, evidence appears in the right rail.        */
+const D=document.getElementById("detail");
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function show(key){
+  const d = EXTRA[key] || NODES[key];
+  if(!d) return;
+  document.querySelectorAll("[data-key].sel").forEach(e=>e.classList.remove("sel"));
+  document.querySelectorAll('[data-key="'+key+'"]').forEach(e=>e.classList.add("sel"));
+
+  const base  = NODES[key] || {};
   const title = d.t || key;
-  const sub   = d.s || (`${(NODES[key]||{}).az||""} · ${(NODES[key]||{}).meta||""}`);
-  const sev   = d.sev, pill = d.pill;
-  document.getElementById("dtitle").textContent = title;
-  document.getElementById("dsub").textContent   = sub;
-  document.getElementById("dbody").innerHTML = `
-    <p><span class="pill ${PILL[sev]}">${pill}</span></p>
-    <h4>Why this matters</h4><p>${d.why}</p>
-    <h4>DNS / resolution state</h4><p>${d.dns}</p>
-    <h4>Evidence (live API output)</h4><pre>${d.ev.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</pre>
-    <h4>Recommended fix</h4><p>${d.fix}</p>`;
-  drawer.classList.add("open"); scrim.classList.add("on");
-  document.getElementById("closeBtn").focus();
+  const sub   = d.s || [base.az, base.meta].filter(Boolean).join(" \u00b7 ");
+
+  D.innerHTML = `
+    <p class="dh">${title}</p>
+    <p class="dsub">${sub}</p>
+    <p><span class="sev ${PILL[d.sev]}">${d.pill}</span></p>
+    <h4>Why this matters</h4><p class="hint">${d.why}</p>
+    <h4>DNS / resolution state</h4><p class="hint">${d.dns}</p>
+    <h4>Evidence (live API output)</h4><pre>${esc(d.ev)}</pre>
+    <h4>Recommended fix</h4><p class="hint">${d.fix}</p>`;
+
+  D.closest(".rail-scroll").scrollTop = 0;
+  /* stacked layout: the rail sits below the content, so bring it into view */
+  if(window.matchMedia("(max-width:1020px)").matches){
+    document.getElementById("rail").scrollIntoView({behavior:"smooth",block:"start"});
+  }
 }
-function shut(){drawer.classList.remove("open");scrim.classList.remove("on");}
+
 document.addEventListener("click",e=>{
-  const el=e.target.closest("[data-key]"); if(el) open(el.dataset.key);
+  const el=e.target.closest("[data-key]");
+  if(el) show(el.dataset.key);
 });
 document.addEventListener("keydown",e=>{
-  if(e.key==="Escape") shut();
-  if((e.key==="Enter"||e.key===" ")&&document.activeElement.dataset?.key){
-    e.preventDefault(); open(document.activeElement.dataset.key);
+  if((e.key==="Enter"||e.key===" ")&&document.activeElement?.dataset?.key){
+    e.preventDefault(); show(document.activeElement.dataset.key);
   }
 });
-document.getElementById("closeBtn").addEventListener("click",shut);
-scrim.addEventListener("click",shut);
 </script>
 </body>
 </html>

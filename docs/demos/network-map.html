@@ -4,54 +4,46 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>AWS Dependency Map — 123456789012 / us-east-2</title>
+<link rel="stylesheet" href="../assets/demo.css">
 <style>
-:root{
-  --bg:#0b0f14; --bg2:#111823; --panel:#0f1620; --line:#1e2a38; --line2:#2b3a4d;
-  --ink:#dfe7ef; --ink2:#8fa3b8; --ink3:#5d7288;
-  --ok:#3ddc97; --warn:#f5b942; --crit:#ff5c6c; --info:#4db8ff; --acc:#7c8cff;
-  --az-a:#4db8ff; --az-b:#c58cff; --az-c:#3ddc97;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+/* page-specific: the SVG diagram itself. Shell chrome lives in demo.css. */
+
+/* The stage keeps the diagram's own aspect ratio, so it no longer stretches to
+   whatever height the findings list happens to be. --svg-ar is updated by the
+   layer toggles because enabling the control plane makes the diagram taller. */
+.stage{
+  background:var(--panel);
+  position:relative;
+  overflow:auto;
+  aspect-ratio:var(--svg-ar, 1240 / 500);
+  max-height:76vh;
 }
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased}
-body{
-  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-  background-size:44px 44px;background-position:-1px -1px;
+.stage svg{
+  display:block;
+  width:100%;
+  height:100%;
+  /* below the breakpoint the stage scrolls sideways instead of shrinking the
+     labels to 4px */
+  min-width:var(--stage-min);
 }
-body::before{content:"";position:fixed;inset:0;background:radial-gradient(120% 80% at 20% 0%,rgba(124,140,255,.10),transparent 60%);pointer-events:none;z-index:0}
-.wrap{position:relative;z-index:1;max-width:1560px;margin:0 auto;padding:28px 22px 60px}
 
-/* ---------- header ---------- */
-header{border:1px solid var(--line2);background:linear-gradient(180deg,rgba(17,24,35,.96),rgba(11,15,20,.9));padding:20px 22px}
-.hrow{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-start;justify-content:space-between}
-h1{margin:0 0 6px;font-size:19px;letter-spacing:-.2px;font-weight:650}
-h1 .dim{color:var(--ink3);font-weight:400}
-.sub{margin:0;color:var(--ink2);font-size:12.5px;font-family:var(--mono)}
-.facts{display:flex;flex-wrap:wrap;gap:1px;background:var(--line);border:1px solid var(--line)}
-.fact{background:var(--panel);padding:8px 13px;min-width:96px}
-.fact b{display:block;font-family:var(--mono);font-size:16px;font-weight:600;line-height:1.3}
-.fact span{display:block;font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink3);margin-top:2px}
-.fact.c b{color:var(--crit)} .fact.w b{color:var(--warn)} .fact.g b{color:var(--ok)} .fact.i b{color:var(--info)}
+/* Taking the rail out of flow means the grid row is sized by the stage alone.
+   Previously the 13-item findings list dictated the row height and left a large
+   empty area under the diagram. */
+.rail{position:relative}
+.rail-body{position:absolute;inset:0;display:flex;flex-direction:column;min-height:0}
 
-/* ---------- controls ---------- */
-.controls{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;border:1px solid var(--line2);border-top:0;background:var(--panel);padding:13px 22px}
-.cgroup{display:flex;flex-direction:column;gap:7px}
-.clabel{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
-.opts{display:flex;flex-wrap:wrap;gap:6px}
-button.opt,label.opt{font-family:var(--mono);font-size:11.5px;color:var(--ink2);background:var(--bg2);border:1px solid var(--line2);padding:5px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:none}
-button.opt:hover,label.opt:hover{border-color:var(--ink3);color:var(--ink)}
-button.opt[aria-pressed=true]{background:rgba(124,140,255,.16);border-color:var(--acc);color:#eaefff}
-label.opt input{accent-color:var(--acc);margin:0;width:12px;height:12px}
-label.opt.off{opacity:.5}
-:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.scrollhint{
+  display:none;
+  font:10px var(--mono);
+  color:var(--ink3);
+  padding:6px 15px;
+  border-bottom:1px solid var(--line);
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
 
-/* ---------- layout ---------- */
-.grid{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:1px;background:var(--line);border:1px solid var(--line2);border-top:0}
-@media(max-width:1080px){.grid{grid-template-columns:1fr}}
-.stage{background:var(--panel);position:relative;overflow:hidden}
-.side{background:var(--panel);display:flex;flex-direction:column;min-height:0}
-svg{display:block;width:100%;height:auto}
+.detail{min-height:132px}
 
 /* ---------- svg ---------- */
 .zone{fill:rgba(255,255,255,.014);stroke:var(--line2);stroke-dasharray:3 4}
@@ -70,58 +62,37 @@ svg{display:block;width:100%;height:auto}
 .ehit{fill:none;stroke:transparent;stroke-width:14;cursor:pointer}
 .elabel{font:9.5px var(--mono);fill:var(--ink3);pointer-events:none}
 .elabel.dim{opacity:.1}
-.badge{font:700 9px var(--mono);fill:#0b0f14}
 .pulse{animation:p 2.4s ease-in-out infinite}
 @keyframes p{0%,100%{opacity:.35}50%{opacity:1}}
 @media(prefers-reduced-motion:reduce){.pulse{animation:none;opacity:.8}}
 
-/* ---------- side panel ---------- */
-.stitle{font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);padding:12px 15px 9px;border-bottom:1px solid var(--line)}
-.detail{padding:14px 15px;border-bottom:1px solid var(--line);min-height:150px}
-.dh{font-size:15px;font-weight:650;margin:0 0 3px}
-.dsub{font-family:var(--mono);font-size:11px;color:var(--ink3);margin:0 0 11px}
-.kv{display:grid;grid-template-columns:82px 1fr;gap:4px 10px;font-size:11.5px;font-family:var(--mono)}
-.kv dt{color:var(--ink3)} .kv dd{margin:0;color:var(--ink);word-break:break-all}
-.hint{color:var(--ink3);font-size:12px;line-height:1.55}
-.flist{overflow-y:auto;max-height:560px}
-.f{border-bottom:1px solid var(--line);padding:10px 15px;cursor:pointer;display:grid;grid-template-columns:auto 1fr;gap:9px;align-items:start}
-.f:hover{background:#131c27}
-.f.sel{background:#16202e;box-shadow:inset 2px 0 0 var(--acc)}
-.sev{font:700 8.5px var(--mono);letter-spacing:.06em;padding:2.5px 5px;margin-top:1px;white-space:nowrap}
-.sev.crit{background:rgba(255,92,108,.16);color:var(--crit);border:1px solid rgba(255,92,108,.4)}
-.sev.high{background:rgba(245,185,66,.14);color:var(--warn);border:1px solid rgba(245,185,66,.38)}
-.sev.med{background:rgba(77,184,255,.13);color:var(--info);border:1px solid rgba(77,184,255,.35)}
-.sev.low{background:rgba(143,163,184,.12);color:var(--ink2);border:1px solid var(--line2)}
-.ft{font-size:12.2px;line-height:1.45;font-weight:550;margin:0 0 3px}
-.fd{font-size:11.3px;line-height:1.5;color:var(--ink2);margin:0}
-.fd code{font-family:var(--mono);font-size:10.5px;color:var(--warn);background:rgba(245,185,66,.08);padding:0 3px}
-
-/* ---------- tables / legend ---------- */
-.foot{margin-top:1px;border:1px solid var(--line2);border-top:0;background:var(--panel);padding:15px 20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:22px}
-.leg h4{margin:0 0 8px;font:600 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
-.li{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink2);margin-bottom:5px;font-family:var(--mono)}
-.sw{width:22px;height:3px;flex:none;border-radius:2px}
-.dot{width:9px;height:9px;flex:none;border:1.5px solid}
-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px}
-th{text-align:left;color:var(--ink3);font-weight:600;padding:5px 8px 5px 0;border-bottom:1px solid var(--line2);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
-td{padding:4.5px 8px 4.5px 0;border-bottom:1px solid var(--line);color:var(--ink2)}
-td.n{color:var(--ink);font-weight:600}
-.bad{color:var(--crit)} .good{color:var(--ok)} .mid{color:var(--warn)}
-.mini{height:5px;background:var(--line);position:relative;min-width:52px}
-.mini i{position:absolute;inset:0 auto 0 0;background:var(--crit)}
-.note{margin-top:14px;color:var(--ink3);font-size:11px;line-height:1.6;font-family:var(--mono)}
-.tag{display:inline-block;font:10px var(--mono);color:var(--ink3);border:1px solid var(--line2);padding:1px 5px;margin:0 3px 3px 0}
+@media(max-width:1020px){
+  /* stacked: give the stage a real height and let it pan horizontally */
+  .stage{aspect-ratio:auto;height:clamp(340px,48vh,480px)}
+  .rail{position:static}
+  .rail-body{position:static;display:block}
+  .rail-scroll{overflow-y:visible}
+  .scrollhint{display:block}
+}
 </style>
 </head>
 <body>
+<a class="skip" href="#map">Skip to the diagram</a>
 <div class="wrap">
 
-<header>
- <div class="hrow">
-  <div>
+<nav class="demo-nav" aria-label="Demo navigation">
+  <a href="../index.html">&larr; Talk index</a>
+  <a href="network-map.html" aria-current="page">1 &middot; Network map</a>
+  <a href="blast-radius.html">2 &middot; Blast radius</a>
+  <span class="spacer"></span>
+  <span class="tagline">generated live on stage &middot; synthetic environment</span>
+</nav>
+
+<header class="panel">
+  <div class="phead">
     <h1>Dependency &amp; Path Map <span class="dim">/ acme-use2</span></h1>
     <p class="sub">acct 123456789012 &middot; us-east-2 &middot; vpc-069cd5268c09419ce (10.20.64.0/18 + 2001:db8:1892:27fd::/56)</p>
-    <p class="sub" style="margin-top:3px;color:var(--ink3)">flow evidence 2026-09-08 14:24&ndash;16:45 UTC &middot; 70,393 records &middot; 60 parquet objects</p>
+    <p class="sub q">flow evidence 2026-09-08 14:24&ndash;16:45 UTC &middot; 70,393 records &middot; 60 parquet objects</p>
   </div>
   <div class="facts">
     <div class="fact"><b>10</b><span>EC2 running</span></div>
@@ -131,10 +102,9 @@ td.n{color:var(--ink);font-weight:600}
     <div class="fact w"><b>6,974</b><span>scan rejects</span></div>
     <div class="fact i"><b>0</b><span>NAT / LB</span></div>
   </div>
- </div>
 </header>
 
-<div class="controls">
+<div class="panel controls">
   <div class="cgroup">
     <span class="clabel" id="lbl-color">Colour nodes by</span>
     <div class="opts" role="group" aria-labelledby="lbl-color">
@@ -161,9 +131,9 @@ td.n{color:var(--ink);font-weight:600}
   </div>
 </div>
 
-<div class="grid">
+<div class="panel split">
   <div class="stage">
-    <svg id="map" viewBox="0 78 1240 500" role="img" aria-label="Interactive AWS dependency diagram. Use the findings list or tab to each node for detail.">
+    <svg id="map" viewBox="0 78 1240 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Interactive AWS dependency diagram. Use the findings list or tab to each node for detail.">
       <defs>
         <marker id="ar" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="context-stroke"/></marker>
         <marker id="arx" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0,1 L10,5 L0,9 z" fill="#ff5c6c"/></marker>
@@ -176,17 +146,20 @@ td.n{color:var(--ink);font-weight:600}
     </svg>
   </div>
 
-  <aside class="side">
-    <div class="stitle">Inspector</div>
-    <div class="detail" id="detail">
-      <p class="hint">Select a node or a finding to inspect resource identity, availability-zone placement, DNS registration health and observed traffic.</p>
+  <aside class="rail" aria-label="Inspector and findings">
+    <div class="rail-body">
+      <div class="stitle">Inspector</div>
+      <div class="scrollhint">Diagram pans sideways &middot; drag or swipe</div>
+      <div class="detail" id="detail">
+        <p class="hint">Select a node or a finding to inspect resource identity, availability-zone placement, DNS registration health and observed traffic.</p>
+      </div>
+      <div class="stitle">Findings &mdash; 13</div>
+      <div class="rail-scroll" id="findings"></div>
     </div>
-    <div class="stitle">Findings &mdash; 13</div>
-    <div class="flist" id="findings"></div>
   </aside>
 </div>
 
-<div class="foot">
+<div class="panel foot">
   <div class="leg">
     <h4>Edge semantics</h4>
     <div class="li"><span class="sw" style="background:#3ddc97"></span> healthy service call</div>
@@ -204,19 +177,19 @@ td.n{color:var(--ink);font-weight:600}
     <div class="li"><span class="dot" style="border-color:#5d7288;background:transparent"></span> unregistered / external</div>
     <div class="li" style="margin-top:8px"><span class="dot" style="border-color:#4db8ff"></span> 2a &nbsp;<span class="dot" style="border-color:#c58cff"></span> 2b &nbsp;<span class="dot" style="border-color:#3ddc97"></span> 2c</div>
   </div>
-  <div class="leg" style="grid-column:span 2;min-width:340px">
+  <div class="leg" style="grid-column:1/-1">
     <h4>Cloud Map / Route 53 registration health &mdash; acme.use2.internal (Z7E83D4C17524B080F658)</h4>
-    <table>
+    <div class="tscroll"><table>
       <thead><tr><th>service</th><th>records</th><th>live</th><th>stale</th><th>blackhole</th><th style="width:74px"></th></tr></thead>
       <tbody id="dnstab"></tbody>
-    </table>
+    </table></div>
     <p class="note">
       Registration is <b>append&#8209;only</b>: <code>acme-use2-svc-register</code> runs every 5&nbsp;min and adds current instance addresses to Cloud Map but never de-registers replaced ones. Flow logs date the two most recent replacements precisely &mdash; <b>db&#8209;replica</b> cut over at 15:41&nbsp;UTC and <b>auth</b> at 16:08&nbsp;UTC; both predecessors still resolve. The <b>app</b> and <b>db&#8209;primary</b> stale entries carried zero traffic across the whole 2h20m window, so they have been dead longer.
     </p>
   </div>
 </div>
 
-<div class="foot" style="grid-template-columns:1fr">
+<div class="panel foot" style="grid-template-columns:1fr">
   <div>
     <h4 style="margin:0 0 9px;font:600 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)">Evidence basis &amp; limits</h4>
     <p class="note" style="margin:0">
@@ -474,6 +447,8 @@ function applyLayers(){
   });
   gz.querySelectorAll('.zone').forEach((z,i)=>{ if(i===4) z.style.display=layers.ctl?'':'none'; });
   svg.setAttribute('viewBox', layers.ctl?'0 78 1240 590':'0 78 1240 500');
+  // keep the stage box the same shape as the diagram so no dead space appears
+  document.querySelector('.stage').style.setProperty('--svg-ar', layers.ctl?'1240 / 590':'1240 / 500');
   gz.querySelectorAll('.zlabel').forEach(t=>{ if(t.textContent==='control plane') t.style.display=layers.ctl?'':'none'; });
   // stale overlay: amber emphasis + pulse when on, neutral rendering when off
   ge.querySelectorAll('.edge').forEach(p=>{
