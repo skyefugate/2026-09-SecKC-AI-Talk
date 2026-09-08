@@ -19,12 +19,21 @@ Demo 3 of the talk is this prompt, run live against this repository:
 > change it will update my architecture documentation. Express this as a living
 > README doc using Mermaid in the folder of our IaC template in this repo.
 
-So `vpc-baseline/README.md` is **intentionally missing**, and so is the workflow
-that generates it. Those two files are the deliverable. If they were already
-committed, the demo would be a magic trick with the rabbit visible in the hat.
+So `vpc-baseline/README.md` was **intentionally missing**, and so was the workflow
+that generates it. Those two files are the deliverable. If they had been committed
+up front, the demo would be a magic trick with the rabbit visible in the hat.
 
-If you are reading this after the talk and those files exist now: that is what got
-written on stage.
+They exist now — that is what got written on stage:
+
+- [`vpc-baseline/README.md`](vpc-baseline/README.md) — the living architecture doc,
+  three Mermaid diagrams and the reference tables, all derived from the template.
+- [`../.github/workflows/architecture-docs.yml`](../.github/workflows/architecture-docs.yml)
+  — regenerates and commits it on every push that touches this directory.
+- [`../scripts/gen-arch-docs.py`](../scripts/gen-arch-docs.py) — the generator.
+
+The output is a pure function of the template: no timestamps, no commit SHA. So a
+push only produces a documentation commit when the architecture actually changed,
+and CI asserts that determinism rather than trusting it.
 
 ## Things in the template worth diagramming
 
