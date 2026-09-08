@@ -471,6 +471,7 @@ class Model:
             "id": logical_id,
             "service": self.t.render(props.get("ServiceName")),
             "kind": self.t.render(props.get("VpcEndpointType")) or "Gateway",
+            "private_dns": bool(props.get("PrivateDnsEnabled")),
             "route_tables": sorted(self.t.refs_in(props.get("RouteTableIds"))),
             "subnets": sorted(self.t.refs_in(props.get("SubnetIds"))),
         }
@@ -687,8 +688,24 @@ def network_diagram(model: Model) -> list[str]:
             lines.append(f'            {mm_id(gid)}[["{mm_multiline(model.name_of(gid), human, extra)}"]]')
     for endpoint in model.endpoints:
         endpoint_ids.append(endpoint["id"])
-        label = mm_multiline(endpoint["service"], f'{endpoint["kind"]} endpoint', "IPv4 only"
-                             if endpoint["kind"].lower() == "gateway" else "")
+        is_gateway = endpoint["kind"].lower() == "gateway"
+        # Interface endpoints are ENIs living in specific subnets. Drawing an edge
+        # per subnet buries the diagram in crossing lines, so state the placement
+        # in the label instead; the VPC endpoints table has the precise list.
+        placement = ""
+        if not is_gateway and endpoint["subnets"]:
+            names = [
+                model.subnets[s]["name"] for s in endpoint["subnets"] if s in model.subnets
+            ]
+            if names:
+                placement = "ENIs in " + ", ".join(sorted(names))
+        label = mm_multiline(
+            endpoint["service"],
+            f'{endpoint["kind"]} endpoint',
+            "IPv4 only" if is_gateway else "",
+            "private DNS" if endpoint["private_dns"] else "",
+            placement,
+        )
         lines.append(f'            {mm_id(endpoint["id"])}[/"{label}"/]')
     lines.append("        end")
 
@@ -710,6 +727,8 @@ def network_diagram(model: Model) -> list[str]:
                 f'    {mm_id(rt_id)} -->|"{mm_label(route["destination"] + suffix)}"| {mm_id(route["target"])}'
             )
     for endpoint in model.endpoints:
+        # Gateway endpoints are reached through a route table. Interface endpoints
+        # have no route of their own: their placement is shown on the node label.
         for rt in endpoint["route_tables"]:
             lines.append(f'    {mm_id(rt)} -->|"prefix list"| {mm_id(endpoint["id"])}')
 
@@ -1186,6 +1205,7 @@ def build_readme(template: Template, model: Model) -> tuple[str, list[str]]:
                 f'`{e["id"]}`',
                 f'`{e["service"]}`',
                 e["kind"],
+                "yes" if e["private_dns"] else "no",
                 ", ".join(f"`{r}`" for r in e["route_tables"]) or "—",
                 ", ".join(f"`{s}`" for s in e["subnets"]) or "—",
             ]
@@ -1194,7 +1214,10 @@ def build_readme(template: Template, model: Model) -> tuple[str, list[str]]:
         lines += [
             "### VPC endpoints",
             "",
-            *md_table(["Endpoint", "Service", "Type", "Route tables", "Subnets"], endpoint_rows),
+            *md_table(
+                ["Endpoint", "Service", "Type", "Private DNS", "Route tables", "Subnets"],
+                endpoint_rows,
+            ),
             "",
         ]
 

@@ -319,6 +319,40 @@ Resources:
       VpcEndpointType: Gateway
       RouteTableIds: [!Ref AppRouteTable, !Ref DataRouteTable]
 
+  # Session Manager reached over interface endpoints instead of the NAT gateway.
+  # The application role is already SSM-only, but without these the agent's
+  # control-plane traffic leaves the VPC and depends on the single NAT in AZ a.
+  # These are the three services Session Manager actually requires.
+  SsmEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref AppSubnetA, !Ref AppSubnetB, !Ref AppSubnetC]
+      SecurityGroupIds: [!Ref EndpointSecurityGroup]
+
+  SsmMessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref AppSubnetA, !Ref AppSubnetB, !Ref AppSubnetC]
+      SecurityGroupIds: [!Ref EndpointSecurityGroup]
+
+  Ec2MessagesEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      VpcId: !Ref Vpc
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      SubnetIds: [!Ref AppSubnetA, !Ref AppSubnetB, !Ref AppSubnetC]
+      SecurityGroupIds: [!Ref EndpointSecurityGroup]
+
   # ---------------------------------------------------------- security groups
   EdgeSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -358,6 +392,22 @@ Resources:
           Description: App to Postgres
       Tags:
         - { Key: Name, Value: !Sub "${EnvironmentName}-sg-data" }
+
+  # Interface endpoints terminate as ENIs inside the application subnets, so they
+  # need their own group. HTTPS from the application tier only.
+  EndpointSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: VPC interface endpoints. HTTPS from the application tier.
+      VpcId: !Ref Vpc
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref AppSecurityGroup
+          Description: App to interface endpoints
+      Tags:
+        - { Key: Name, Value: !Sub "${EnvironmentName}-sg-endpoints" }
 
   # ------------------------------------------------------------- service disco
   PrivateZone:
@@ -639,3 +689,9 @@ Outputs:
   ReadReplicaEnabled:
     Description: Whether the data tier has a cross-AZ read replica.
     Value: !If [WantsReadReplica, "true", "false"]
+
+  SsmEndpointIds:
+    Description: >-
+      Interface endpoints carrying Session Manager traffic. With these present the
+      agent no longer depends on the NAT gateway for its control plane.
+    Value: !Join [",", [!Ref SsmEndpoint, !Ref SsmMessagesEndpoint, !Ref Ec2MessagesEndpoint]]
