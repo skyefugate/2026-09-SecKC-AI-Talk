@@ -1,0 +1,41 @@
+# Unsanitized artifacts.
+#
+# The diagrams under docs/demos/ were generated against a real AWS account. The
+# originals contain a real account number, real resource IDs, and real addressing,
+# and must never be committed. Keep them outside the repo, or drop them in _raw/
+# and run scripts/sanitize.py to produce the published copies.
+#
+# Note the patterns here are deliberately generic: an ignore rule naming the real
+# account or organisation would leak exactly what it is meant to protect.
+_raw/
+*.raw.html
+*.unsanitized.html
+
+# Sanitizer configuration, if you keep the tokens in a file rather than the
+# environment. scripts/sanitize.py reads them from env vars by default.
+scripts/sanitize.local*
+.env
+.env.*
+
+# Deck working files. The published PDF lives at docs/slides/slides.pdf.
+*.pptx
+*.key
+~$*
+deck-extract/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*.swp
