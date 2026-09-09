@@ -20,20 +20,28 @@ Demo 3 of the talk is this prompt, run live against this repository:
 > README doc using Mermaid in the folder of our IaC template in this repo.
 
 So `vpc-baseline/README.md` was **intentionally missing**, and so was the workflow
-that generates it. Those two files are the deliverable. If they had been committed
-up front, the demo would be a magic trick with the rabbit visible in the hat.
+that generates it. Those files are the deliverable. If they had been committed up
+front, the demo would be a magic trick with the rabbit visible in the hat.
 
-They exist now — that is what got written on stage:
+They are committed here so you can read them after the talk. For the live run they
+come back out of the tree first.
 
-- [`vpc-baseline/README.md`](vpc-baseline/README.md) — the living architecture doc,
-  three Mermaid diagrams and the reference tables, all derived from the template.
+- [`vpc-baseline/README.md`](vpc-baseline/README.md) — the living architecture doc.
+  One Mermaid diagram. Generated, never hand-edited.
+- [`../scripts/generate-architecture.py`](../scripts/generate-architecture.py) — the
+  generator. About a hundred lines.
 - [`../.github/workflows/architecture-docs.yml`](../.github/workflows/architecture-docs.yml)
-  — regenerates and commits it on every push that touches this directory.
-- [`../scripts/gen-arch-docs.py`](../scripts/gen-arch-docs.py) — the generator.
+  — regenerates and commits it on every push that touches a template.
 
-The output is a pure function of the template: no timestamps, no commit SHA. So a
-push only produces a documentation commit when the architecture actually changed,
-and CI asserts that determinism rather than trusting it.
+The generator does **lightweight dependency discovery**, not CloudFormation
+evaluation. It reads `Ref` and `Fn::GetAtt`, keeps the dozen or so resources you
+would actually draw on a whiteboard, and collapses the route-table-association
+plumbing in between. It does not resolve `Fn::Sub`, evaluate conditions, or emulate
+CloudFormation — CloudFormation already understands CloudFormation. Useful
+documentation needs far less understanding than you would assume.
+
+The output is a pure function of the template: no timestamps, no commit SHA. A push
+only produces a documentation commit when the architecture actually changed.
 
 ## Things in the template worth diagramming
 

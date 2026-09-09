@@ -18,7 +18,7 @@ This repo has everything from the talk.
 
 2. **<a href="https://skyefugate.github.io/2026-09-SecKC-AI-Talk/demos/blast-radius.html" target="_blank">Architecture Review</a>** — "Which failure points create the largest blast radius?" Ranked failure points, request path propagation, and the AZ concentration nobody had noticed.
 
-3. **Architecture Documentation** *(live, in this repo)* — "Write a script that runs on GitHub Actions that as I push an IaC change it will update my architecture documentation." The CloudFormation template is committed at [`iac/vpc-baseline/`](iac/vpc-baseline/). The workflow and the Mermaid diagram are not — writing them is the demo.
+3. **Architecture Documentation** *(live, in this repo)* — "Write a script that runs on GitHub Actions that as I push an IaC change it will update my architecture documentation." The CloudFormation template is committed at [`iac/vpc-baseline/`](iac/vpc-baseline/). Writing the generator, the workflow, and the diagram is the demo — a ~100-line script and a 25-line workflow, both in the repo so you can steal them.
 
 All three prompts, verbatim, are in **[prompts/demo-prompts.md](prompts/demo-prompts.md)**.
 

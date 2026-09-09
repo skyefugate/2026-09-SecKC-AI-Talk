@@ -67,9 +67,14 @@ using Mermaid in the folder of our IaC template in this repo.
 
 **Target:** [`iac/vpc-baseline/`](../iac/vpc-baseline/)
 
-This one runs live against this repository. The template is already committed; the
-workflow and the Mermaid README are not, because writing them *is* the demo. See
-[`iac/README.md`](../iac/README.md).
+This one runs live against this repository. The template is committed; the generator,
+the workflow, and the Mermaid README are what get written on stage. They are in the
+repo now so you can read them afterwards — see [`iac/README.md`](../iac/README.md).
+
+The result is deliberately small: one ~100-line Python script, a 25-line workflow, and
+one diagram. It reads `Ref` and `Fn::GetAtt` and nothing else. It is not a
+CloudFormation evaluator, and it does not need to be — the point is that the diagram
+changes when the infrastructure changes, not that the tool is clever.
 
 Mermaid rather than an image on purpose — it renders natively on GitHub, it diffs
 as text, and a diagram that lives in a pull request is a diagram that gets
