@@ -3,17 +3,9 @@ name: architecture docs
 # Keeps iac/*/README.md in step with the CloudFormation templates.
 #
 #   push (any branch)      -> regenerate and commit the result back
-#   pull_request from fork -> verify only, and fail if stale
-#
-# A same-repo pull request is already covered by the push to its branch, so the
-# verify job deliberately skips those rather than racing the update job to commit.
-#
-# The generated READMEs are excluded from the path filters, so the commit this
-# workflow makes cannot retrigger it. Pushes made with GITHUB_TOKEN do not trigger
-# workflows either, so the loop is closed twice over.
+#   pull_request from fork -> verify only
 
 on:
-  # GitHub Actions does not support YAML anchors, so the path filter is repeated.
   push:
     paths:
       - "iac/**"
@@ -31,8 +23,6 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # One run per ref. A later push supersedes an in-flight run rather than racing
-  # it to commit.
   group: architecture-docs-${{ github.ref }}
   cancel-in-progress: true
 
@@ -45,7 +35,6 @@ jobs:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
-      # Needed only to push the regenerated README back to the branch.
       contents: write
     steps:
       - uses: actions/checkout@v5
@@ -58,8 +47,6 @@ jobs:
         run: pip install --disable-pip-version-check pyyaml==6.0.2 cfn-lint==1.22.3
 
       - name: lint templates before documenting them
-        # Documenting a template that does not parse would produce a misleading
-        # diagram, so fail here rather than commit fiction.
         run: |
           shopt -s globstar nullglob
           templates=(iac/**/template.yaml iac/**/template.yml)
@@ -70,9 +57,6 @@ jobs:
         run: python3 scripts/gen-arch-docs.py --root iac
 
       - name: verify the generator is deterministic
-        # Re-derives every README from the templates and compares against what was
-        # just written. If this fails, the output is not a pure function of the
-        # template and CI would commit on every push forever.
         run: python3 scripts/gen-arch-docs.py --root iac --check
 
       - name: detect changes
@@ -108,8 +92,6 @@ jobs:
 
   verify:
     name: verify docs are current (fork PRs)
-    # Same-repo pull requests are handled by the push to their branch. Forks cannot
-    # be pushed to from here, so all we can do is tell the author.
     if: >-
       github.event_name == 'pull_request'
       && github.event.pull_request.head.repo.full_name != github.repository
