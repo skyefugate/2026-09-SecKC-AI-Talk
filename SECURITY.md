@@ -1,34 +1,25 @@
-# Security Policy
+# Security
 
-## Reporting a Vulnerability
+This is a repo of talk slides, prompts, diagrams, and demo infrastructure.
 
-This repo contains educational materials from a security talk: slides, AI prompts, a CloudFormation template, and two static HTML diagrams. There's no running code or services to exploit.
+There is no production service here. There are no customer records. There is no secret cryptocurrency wallet hidden in the Mermaid diagrams.
 
-If you find something concerning in the prompts or materials:
+If you somehow find an actual security problem, congrats.
 
-1. **Email me:** skye@fugate.dev
-2. **Include:** What you found and why it's a concern
-3. **Response time:** I'll get back to you within 48 hours
+Email me at **skye@fugate.dev**.
 
-## Scope
+Useful things to report:
 
-**In scope:**
-- Prompts that could be misused for malicious purposes
-- Sensitive information accidentally included in materials
-- The CloudFormation template in `iac/` encouraging an insecure pattern
-- Misleading security advice in documentation
+- Secrets or credentials I accidentally committed
+- Something genuinely dangerous in the example infrastructure
+- Security guidance that is spectacularly wrong
+- Anything else that makes you say "Skye, what the fuck"
 
-**Out of scope:**
-- The AI models themselves (I don't control those)
-- Third-party tools mentioned in demos
-- The `allowedTools` list in `prompts/GLaDOS.json` — it's deliberately permissive for stage use and documented as such in `prompts/README.md`. Copying it into production is the hazard, and that warning is the point.
-- Theoretical attacks that require significant modification
+Please do not report:
 
-## Disclosure
+- That the demo AI has broad permissions. I know.
+- That AI can do dumb things. That's half the talk.
+- Vulnerabilities in GitHub, AWS, OpenAI, Anthropic, your toaster, etc.
+- Theoretical attacks requiring seventeen prerequisites and a blood moon
 
-If you report something valid, I'll:
-- Fix it promptly
-- Credit you (unless you prefer anonymity)
-- Update materials and notify anyone who downloaded them
-
-Thanks for helping keep this educational content safe and responsible.
+Thanks for looking out.
