@@ -10,7 +10,7 @@ This repo has everything from the talk.
 
 ## What's Here
 
-**Slides (PDF)** — The full deck. Going up as `docs/slides/slides.pdf` once it's final.
+**Slides (PDF)** — The full deck: [`docs/slides/slides.pdf`](docs/slides/slides.pdf).
 
 **Demos** — Three demos, each generated live on stage from one prompt:
 
