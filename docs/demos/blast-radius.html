@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Blast Radius Analysis — acme-use2 (123456789012)</title>
+<link rel="stylesheet" href="../assets/demo.css">
+<style>
+/* page-specific: AZ topology cards, flow trace, risk table.
+   Shell chrome, severity pills and the rail live in demo.css. */
+
+.content{background:var(--panel);min-width:0}
+.legend-row{display:flex;gap:16px;flex-wrap:wrap;padding:12px 15px 0;font-size:11.5px;color:var(--ink2);font-family:var(--mono)}
+.legend-row span{display:flex;align-items:center;gap:6px}
+.legend-row .rdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+
+.azgrid{
+  display:grid;
+  /* auto-fit + minmax(0,...) so narrow screens collapse cleanly instead of
+     pushing the cards past the viewport edge */
+  grid-template-columns:repeat(auto-fit,minmax(min(268px,100%),1fr));
+  gap:12px;
+  padding:14px 15px;
+}
+.azgrid > *{min-width:0}
+.az{background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);padding:12px}
+.az.hot{border-color:rgba(255,92,108,.55);box-shadow:0 0 0 1px rgba(255,92,108,.18)}
+.az h3{margin:0 0 3px;font:12.5px var(--mono);letter-spacing:.3px;color:var(--ink)}
+.aznote{font-size:11px;color:var(--ink3);margin-bottom:10px;line-height:1.45}
+
+.node{
+  border:1px solid var(--line2);border-left-width:3px;border-radius:var(--r);
+  background:var(--panel2);padding:8px 10px;margin-bottom:8px;cursor:pointer;
+  transition:background .16s,border-color .16s;min-width:0;
+}
+.node:last-child{margin-bottom:0}
+.node:hover{background:#1d2735;border-color:var(--ink3)}
+.node.sel{background:#16202e;border-color:var(--acc);box-shadow:inset 2px 0 0 var(--acc)}
+.node .top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.node .nm{font:12.5px var(--mono);color:var(--ink)}
+.node .meta{font-size:10.5px;color:var(--ink3);margin-top:3px;font-family:var(--mono);overflow-wrap:anywhere}
+.node[data-sev="1"]{border-left-color:var(--crit)}
+.node[data-sev="2"]{border-left-color:var(--warn)}
+.node[data-sev="3"]{border-left-color:var(--info)}
+.node[data-sev="ok"]{border-left-color:var(--ok)}
+
+.bar{display:flex;height:4px;border-radius:3px;overflow:hidden;margin-top:7px;background:#0c1218}
+.bar i{display:block;height:100%}
+.bar .live{background:var(--ok)}
+.bar .dead{background:var(--crit)}
+
+.flow{
+  margin:14px 15px;background:var(--bg2);border:1px solid var(--line);border-radius:var(--r);
+  padding:14px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);
+  overflow-x:auto;line-height:1.85;
+}
+.flow b{color:var(--ink);font-weight:600}
+
+.risk{padding:0 15px 15px}
+.risk tbody tr{cursor:pointer}
+.risk tbody tr:hover{background:#131c27}
+.risk tbody tr.sel{background:#16202e;box-shadow:inset 2px 0 0 var(--acc)}
+.risk td{padding:8px 10px 8px 0}
+.risk td.rk{font-family:var(--mono);font-weight:700;color:var(--crit);width:28px}
+.risk td b{color:var(--ink);font-weight:600}
+.rad{font-size:10.5px;color:var(--ink3);line-height:1.5}
+
+/* the rail is sticky here because the left column is a long document rather
+   than a fixed-height diagram */
+.rail{position:sticky;top:12px;align-self:start;max-height:calc(100vh - 24px)}
+.rail h4{
+  margin:16px 0 6px;font:600 9.5px var(--mono);letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink3);
+}
+.rail .detail{border-bottom:0}
+.rail .hint{margin:0 0 8px}
+
+@media(max-width:1020px){
+  .rail{position:static;max-height:none}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<div class="wrap">
+
+<nav class="demo-nav" aria-label="Demo navigation">
+  <a href="../index.html">&larr; Talk index</a>
+  <a href="network-map.html">1 &middot; Network map</a>
+  <a href="blast-radius.html" aria-current="page">2 &middot; Blast radius</a>
+  <span class="spacer"></span>
+  <span class="tagline">generated live on stage &middot; synthetic environment</span>
+</nav>
+
+<header class="panel">
+  <div class="phead">
+    <h1>Blast Radius Analysis <span class="dim">/ acme-use2</span></h1>
+    <p class="sub">account 123456789012 &middot; us-east-2 &middot; vpc-069cd5268c09419ce (10.20.64.0/18)</p>
+    <p class="sub q">read-only enumeration 2026-09-08 &middot; single region, single VPC &middot; 10 ASGs</p>
+  </div>
+  <div class="facts">
+    <div class="fact c"><b>0</b><span>EBS snapshots</span></div>
+    <div class="fact c"><b>0</b><span>Backup plans</span></div>
+    <div class="fact c"><b>0</b><span>Load balancers</span></div>
+    <div class="fact w"><b>0</b><span>R53 health checks</span></div>
+    <div class="fact w"><b>11</b><span>Stale DNS answers</span></div>
+    <div class="fact i"><b>10</b><span>ASGs min=max=1</span></div>
+  </div>
+</header>
+
+<div class="panel split">
+  <div class="content" id="content">
+
+    <h2 class="sec">Topology by availability zone</h2>
+    <div class="legend-row">
+      <span><i class="rdot" style="background:var(--crit)"></i> catastrophic</span>
+      <span><i class="rdot" style="background:var(--warn)"></i> severe</span>
+      <span><i class="rdot" style="background:var(--info)"></i> elevated</span>
+      <span><i class="rdot" style="background:var(--ok)"></i> healthy</span>
+      <span style="color:var(--ink3)">&mdash; select anything for evidence</span>
+    </div>
+    <div class="azgrid" id="azgrid"></div>
+
+    <h2 class="sec">Request path &amp; failure propagation</h2>
+    <div class="flow">
+<b>internet</b> &rarr; 4 &times; ECS edge task <span class="good">(public IPs, ECS-managed, 4/4 healthy)</span><br>
+&nbsp;&nbsp;&darr; resolves <b>app.acme.use2.internal</b> &mdash; AAAA, TTL 15, multivalue, <span class="bad">no health check</span><br>
+&nbsp;&nbsp;&darr; <span class="bad">6 answers returned &middot; 3 live &middot; 3 point at terminated instances &rarr; ~50% connection failure</span><br>
+<b>app tier</b> (app-1/2/3, one per AZ)<br>
+&nbsp;&nbsp;&darr; resolves <b>auth.acme.use2.internal</b><br>
+&nbsp;&nbsp;&darr; <span class="bad">4 answers returned &middot; 0 live &rarr; auth unreachable by name, 100% failure</span><br>
+&nbsp;&nbsp;&darr; resolves <b>db-primary.acme.use2.internal</b><br>
+&nbsp;&nbsp;&darr; <span class="bad">4 answers returned &middot; 1 live &rarr; ~75% of writes fail; no failover to replica</span><br>
+&nbsp;&nbsp;&darr; resolves <b>cache</b> &rarr; 1 answer, live, <span class="bad">single instance in us-east-2a, no replica</span><br>
+<br>
+<span style="color:var(--ink3)">egress: no NAT gateway. IPv4 outbound = S3 gateway endpoint only.<br>
+IPv6 outbound via eigw-0ab045701000f0e21. No SSM/interface endpoints &rarr; no Session Manager break-glass.</span>
+    </div>
+
+    <h2 class="sec">Failure points ranked by blast radius</h2>
+    <div class="risk">
+      <div class="tscroll">
+        <table>
+          <thead><tr><th>#</th><th>Failure point</th><th>Radius if it fails</th><th>Recoverable?</th></tr></thead>
+          <tbody id="risktable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <aside class="rail" id="rail" aria-label="Evidence inspector">
+    <div class="rail-body">
+      <div class="stitle">Inspector</div>
+      <div class="rail-scroll">
+        <div class="detail" id="detail">
+          <p class="hint">Select any component, availability zone or ranked failure point to see
+          why it matters, its DNS resolution state, the raw API evidence behind the claim, and the
+          recommended fix.</p>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div class="panel foot" style="grid-template-columns:1fr">
+  <div>
+    <h4>Evidence basis &amp; limits</h4>
+    <p class="note">
+      Generated from live AWS API reads on 2026-09-08 &mdash; read-only enumeration of
+      <span class="tag">ec2</span><span class="tag">rds</span><span class="tag">elbv2</span><span class="tag">ecs</span><span class="tag">eks</span><span class="tag">lambda</span><span class="tag">autoscaling</span><span class="tag">route53</span><span class="tag">servicediscovery</span><span class="tag">backup</span><span class="tag">s3</span>.<br>
+      <b>Not verified:</b> CloudFormation describe/list is denied by permissions boundary
+      <code>DemoAdminBoundary</code>, so stack templates were not inspected &mdash; every finding
+      derives from deployed resource state only. live/dead counts are Cloud Map registered answers
+      cross-referenced against <code>ec2:DescribeInstances</code> running state.
+    </p>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   All figures below come from live API reads. live/dead = Cloud Map registered
+   answers cross-referenced against ec2:DescribeInstances running state.
+--------------------------------------------------------------------------- */
+const NODES = {
+  "db-primary":{az:"us-east-2a",sev:1,pill:"Catastrophic",tag:"SPOF + no backup",
+    meta:"i-07fdd16a86ffc02b0 · t4g.small · vol 8GiB gp3",live:1,dead:3,
+    why:"Single writer, single instance, single AZ, single 8 GiB gp3 volume — and zero snapshots exist anywhere in the account. There is no RDS, no AWS Backup plan, and no AMI. Loss of this instance or its volume is unrecoverable data loss.",
+    dns:"db-primary.acme.use2.internal returns 4 AAAA answers. Only 1 corresponds to a running instance; 3 are terminated. Roughly 75% of new DB connections target dead addresses. A single-writer database should never be a multi-answer record.",
+    ev:`Cloud Map srv-tcdmcfahj2bsm7w6 (db-primary) — 4 registered:
+  i-0c09f24876bd79bff  ...db8:4adb:1b82:1ef6   NOT RUNNING
+  i-07fdd16a86ffc02b0  ...db8:fb01:6622:48b0   running  <-- only live
+  i-052eae81e346a5736  ...db8:0ac4:6c49:eab3   NOT RUNNING
+  i-0516dcc8e9586591f  ...db8:f03c:5b8b:b17f   NOT RUNNING
+
+aws ec2 describe-snapshots --owner-ids self  -> 0   (us-east-1 and us-east-2)
+aws backup list-backup-plans                 -> []
+aws ec2 describe-images --owners self         -> []
+aws rds describe-db-instances                 -> []`,
+    fix:"Snapshot now and attach a DLM/AWS Backup schedule. Convert db-primary to a single-answer record or a stable ENI/IP. Longer term, move to RDS Multi-AZ or add automated promotion of db-replica."},
+
+  "cache":{az:"us-east-2a",sev:2,pill:"Severe",tag:"single instance",
+    meta:"i-0243e132c8670d6d0 · port 6379",live:1,dead:0,
+    why:"One cache node, no replica, no cluster. DNS is currently accurate, but there is no second answer to fail over to. If the app treats cache as required rather than optional, this is a full outage; if it degrades gracefully, it is a latency and load event against the already-fragile primary DB.",
+    dns:"cache.acme.use2.internal returns 1 AAAA answer, live. Correct today, but replacement by its ASG will mint a new IPv6 and leave the old answer registered.",
+    ev:`Cloud Map srv-kgytoztblhwtl6at (cache) — 1 registered, 1 live
+ASG acme-use2-cache: min=1 max=1 desired=1, AZ=[us-east-2a], HealthCheck=EC2`,
+    fix:"Add a replica in another AZ, or move to ElastiCache with automatic failover."},
+
+  "auth":{az:"us-east-2a",sev:1,pill:"Catastrophic",tag:"100% stale DNS",
+    meta:"i-0e065c764120985f6 · running · NOT registered",live:0,dead:4,
+    why:"This is an active, present-tense failure, not a hypothetical. The auth ASG replaced its instance at 17:12 UTC. All four DNS answers point at terminated instances. The running instance's address is absent from the registry. Every caller resolving auth by name currently gets only dead endpoints.",
+    dns:"auth.acme.use2.internal returns 4 AAAA answers, 0 live. The live address ...db8:6e6e:b496:7a76 appears in no DNS record.",
+    ev:`Cloud Map srv-csc5e5jhehaesaea (auth) — 4 registered, 0 live:
+  i-0ec7fb1fcfa48d30b  ...db8:26cd:47d1:d037   terminated
+  i-05facdf0b3e5a1354  ...db8:21fb:74a1:27d0   NOT RUNNING
+  i-0808fa5ffe1b3af19  ...db8:a760:0432:30ae    NOT RUNNING
+  i-0fb1abefb33032540  ...db8:503d:5c62:4845   NOT RUNNING
+
+RUNNING auth instance NOT in registry:
+  i-0e065c764120985f6  ...db8:6e6e:b496:7a76   launched 17:12:37Z`,
+    fix:"Immediate: invoke acme-use2-svc-register to add the live instance, and manually deregister the four dead IDs. Structural: fix the registrar (see 'Service registrar')."},
+
+  "app-1":{az:"us-east-2a",sev:3,pill:"Elevated",tag:"1 of 3 app nodes",
+    meta:"i-08cefcd44adcfb45e · registered, live",live:1,dead:0,
+    why:"Individually survivable — three app nodes across three AZs. The problem is that the shared 'app' DNS record it belongs to is 50% poisoned, so losing any one node raises the dead-answer ratio further rather than shifting traffic cleanly.",
+    dns:"Part of app.acme.use2.internal: 6 answers, 3 live, 3 terminated.",
+    ev:`ASG acme-use2-app-1: min=1 max=1 desired=1, AZ=[us-east-2a], HealthCheck=EC2
+Cannot launch outside us-east-2a; max=1 blocks scale-out.`,
+    fix:"Widen ASGs across AZs and put the app tier behind an ALB target group."},
+
+  "app-2":{az:"us-east-2b",sev:3,pill:"Elevated",tag:"1 of 3 app nodes",
+    meta:"i-09f7e4a20a7e33782 · registered, live",live:1,dead:0,
+    why:"Same as app-1. Note this instance launched at 12:16 UTC, replacing i-06ae0a4463c7b1823 — whose address is still being served in DNS.",
+    dns:"Part of app.acme.use2.internal: 6 answers, 3 live, 3 terminated.",
+    ev:`ASG acme-use2-app-2: min=1 max=1 desired=1, AZ=[us-east-2b], HealthCheck=EC2
+Stale predecessor still registered: i-06ae0a4463c7b1823 ...db8:0feb:7b24:9ded`,
+    fix:"Widen ASGs across AZs and put the app tier behind an ALB target group."},
+
+  "app-3":{az:"us-east-2c",sev:3,pill:"Elevated",tag:"1 of 3 app nodes",
+    meta:"i-08df9b3e895a0b2ce · registered, live",live:1,dead:0,
+    why:"Same as app-1. Its predecessor i-01d91a2a29b002c4f also remains registered.",
+    dns:"Part of app.acme.use2.internal: 6 answers, 3 live, 3 terminated.",
+    ev:`ASG acme-use2-app-3: min=1 max=1 desired=1, AZ=[us-east-2c], HealthCheck=EC2
+Stale predecessor still registered: i-01d91a2a29b002c4f ...db8:9982:23ce:ea20`,
+    fix:"Widen ASGs across AZs and put the app tier behind an ALB target group."},
+
+  "db-replica":{az:"us-east-2b",sev:2,pill:"Severe",tag:"50% stale · no promotion",
+    meta:"i-0929de9ffcbe49f71 · running",live:1,dead:1,
+    why:"A replica exists in a different AZ, which is the one piece of real redundancy in the data tier — but nothing promotes it. There is no failover automation, and the app resolves db-primary by a separate name, so a primary loss requires manual intervention with no tested runbook.",
+    dns:"db-replica.acme.use2.internal returns 2 AAAA answers, 1 live, 1 terminated.",
+    ev:`Cloud Map srv-2csklnnyzuku2kvh (db-replica) — 2 registered, 1 live:
+  i-06e46beb95a724960  ...db8:030b:43e1:5e71   NOT RUNNING
+  i-0929de9ffcbe49f71  ...db8:46c8:1264:4b2a   running`,
+    fix:"Automate promotion, or replace the pair with RDS Multi-AZ so failover is a managed DNS swap."},
+
+  "syslog":{az:"us-east-2b",sev:3,pill:"Elevated",tag:"single log sink",
+    meta:"i-0997456c7e1dce3de · udp/514",live:1,dead:0,
+    why:"Single log aggregation point. Losing it does not stop traffic, but it blinds incident response at exactly the moment you need telemetry. Compounded by the absence of interface VPC endpoints for CloudWatch Logs over IPv4.",
+    dns:"syslog.acme.use2.internal returns 1 AAAA answer, live.",
+    ev:`ASG acme-use2-syslog: min=1 max=1 desired=1, AZ=[us-east-2b]
+WorkloadSg ingress: udp/514 from sg-08e2e9ba2294cf47f (self)`,
+    fix:"Ship logs to CloudWatch Logs or S3 in addition to the syslog host."},
+
+  "batch":{az:"us-east-2c",sev:"ok",pill:"Healthy",tag:"not in DNS",
+    meta:"i-050c3364c2e1ea7e8 · no Cloud Map service",live:0,dead:0,
+    why:"Batch worker with no inbound service dependency registered. Lowest blast radius in the environment — failure delays asynchronous work rather than breaking the request path.",
+    dns:"No Cloud Map service registration.",
+    ev:`ASG acme-use2-batch: min=1 max=1 desired=1, AZ=[us-east-2c]`,
+    fix:"None urgent. Ensure jobs are idempotent and re-drivable."},
+
+  "canary":{az:"us-east-2c",sev:2,pill:"Severe",tag:"blind spot",
+    meta:"i-0766add6cc543d811 · not registered",live:0,dead:0,
+    why:"A canary exists but is not registered in Cloud Map and there are no Route53 health checks anywhere in the account. Whatever it measures is not gating traffic. The auth outage is live right now and was not caught — that is the practical proof this monitoring path is not closing the loop.",
+    dns:"No Cloud Map registration. route53 list-health-checks returned [].",
+    ev:`aws route53 list-health-checks -> []
+Cloud Map service "reporting" (srv-mxvm4edyrd3bl3mb) -> 0 instances registered
+Canary i-0766add6cc543d811 appears in no Cloud Map service`,
+    fix:"Wire canary results to alarms on per-service live-answer count vs ASG desired capacity."},
+
+  "edge":{az:"public subnets (a/b/c)",sev:"ok",pill:"Healthy",tag:"only correct tier",
+    meta:"ECS service · desired 4 · running 4",live:4,dead:0,
+    why:"The one well-built component. ECS manages Cloud Map registration and deregistration natively, so all four answers are accurate. It spans three AZs and has HealthCheckCustomConfig. This is the pattern the EC2 tiers should be following.",
+    dns:"edge.acme.use2.internal returns 4 A answers, 4/4 live and matching running task ENIs.",
+    ev:`ECS acme-use2-edge: desired=4 running=4 pending=0
+  minimumHealthyPercent=100, assignPublicIp=ENABLED
+  registryArn srv-kbynw7winv342p2r, HealthCheckCustomConfig{FailureThreshold:1}
+Task ENIs: 10.20.112.171 / .113.158 / .114.129 / .114.252 — all live
+Public IPs: 203.0.113.10, 203.0.113.11, 203.0.113.12, 203.0.113.13`,
+    fix:"None. Note tasks are directly internet-exposed with public IPs and no ALB or WAF in front."}
+};
+
+const RISKS = [
+  {r:1,n:"Service registrar never deregisters",k:"registrar",
+   rad:"Every EC2-backed service name. Silent, cumulative, already causing a live auth outage.",rec:"Yes — code fix"},
+  {r:2,n:"db-primary: single instance, zero backups",k:"db-primary",
+   rad:"Total, permanent data loss. No snapshot, AMI, backup plan, or RDS anywhere in the account.",rec:"No — unrecoverable"},
+  {r:3,n:"us-east-2a concentration",k:"az-a",
+   rad:"One AZ holds the only writer, only cache, and only auth. Losing 2a is a full outage.",rec:"Manual rebuild"},
+  {r:4,n:"No load balancer; DNS is the only routing layer",k:"nolb",
+   rad:"All ingress and all service-to-service calls. No health-gated routing anywhere.",rec:"Yes — add ALB/NLB"},
+  {r:5,n:"ASGs pinned min=max=1 to a single AZ",k:"asg",
+   rad:"Every EC2 tier. No scale-out, no cross-AZ recovery, EC2-only health checks.",rec:"Yes — config"},
+  {r:6,n:"No IPv4 egress and no interface endpoints",k:"egress",
+   rad:"Break-glass access. No NAT gateway, no SSM endpoints — limited recovery path mid-incident.",rec:"Yes — add endpoints"},
+  {r:7,n:"No DR: us-east-1 is an empty shell",k:"dr",
+   rad:"Region-level event is unsurvivable. The us-east-1 VPC has no subnets and no compute.",rec:"No — nothing to fail to"},
+  {r:8,n:"Duplicate Cloud Map namespace / orphaned zone",k:"dupns",
+   rad:"Operational confusion. Two namespaces share a name; one points at a deleted VPC.",rec:"Yes — delete cruft"}
+];
+
+const EXTRA = {
+  registrar:{t:"Service registrar — root cause",s:"acme-use2-svc-register · rate(5 minutes)",
+    sev:1,pill:"Catastrophic",
+    why:"This single defect explains every stale record in the environment. The Lambda enumerates running instances and calls register_instance for each. It never calls deregister_instance — the string does not appear in the source. Nothing else prunes the registry, and none of the EC2-backed Cloud Map services have health checks configured. So each ASG replacement permanently adds a dead answer, and the ratio of bad endpoints climbs monotonically forever.",
+    dns:"Current damage: 11 stale answers across 4 services. auth is 0/4 live, db-primary 1/4, app 3/6, db-replica 1/2.",
+    ev:`Source of acme-use2-svc-register (verbatim, abridged):
+
+  sd.register_instance(ServiceId=sid,
+      InstanceId=i["InstanceId"],
+      Attributes={"AWS_INSTANCE_IPV6": v6[0], "LW_COMPONENT": role})
+
+- iterates only instance-state-name=running
+- no deregister_instance call anywhere in the function
+- no reconciliation of registry against live instances
+- EventBridge rate(5 minutes), so drift is re-affirmed, never corrected
+
+HealthCheckConfig / HealthCheckCustomConfig = null for app, auth,
+cache, db-primary, db-replica, syslog, reporting.
+Only 'edge' has HealthCheckCustomConfig — and edge is managed by ECS,
+not by this Lambda. That is why edge is the only accurate record set.`,
+    fix:"Make the registrar reconcile rather than append: list registered instances per service, deregister any whose instance ID is not in the running set, then register missing ones. Add HealthCheckCustomConfig so Cloud Map can evict unhealthy targets. Best fix is to stop hand-rolling this and let an ALB target group or ECS own membership."},
+
+  "az-a":{t:"us-east-2a — correlated failure domain",s:"subnet-09ec65b1c3fcf9128 · 10.20.64.0/20",
+    sev:1,pill:"Catastrophic",
+    why:"AZ 2a simultaneously hosts db-primary (the only writer), cache (the only cache), auth (the only auth node), and app-1. Because every ASG is locked to min=max=1 in a single AZ, none of these can relaunch elsewhere. An AZ impairment is therefore not a degradation — it removes writes, sessions, and caching at once, with no automated recovery.",
+    dns:"All four components resolve to addresses in the 2001:db8:1892:27fd::/64 prefix belonging to this subnet.",
+    ev:`us-east-2a contents (all t4g.small, all single-instance ASGs):
+  db-primary  i-07fdd16a86ffc02b0   only writer
+  cache       i-0243e132c8670d6d0   only cache
+  auth        i-0e065c764120985f6   only auth
+  app-1       i-08cefcd44adcfb45e   1 of 3
+
+ASG AZ pinning prevents cross-AZ relaunch:
+  acme-use2-db-primary  AZs=[us-east-2a]  min=max=1
+  acme-use2-cache       AZs=[us-east-2a]  min=max=1
+  acme-use2-auth        AZs=[us-east-2a]  min=max=1`,
+    fix:"Spread the ASGs across 2a/2b/2c and move at least cache and auth out of the writer's AZ."},
+
+  nolb:{t:"No load balancer in the account",s:"elbv2 DescribeLoadBalancers -> [] in both regions",
+    sev:2,pill:"Severe",
+    why:"Routing is done entirely with multivalue Cloud Map DNS at TTL 15 and no health checks. DNS has no concept of a failed backend: it hands out dead addresses with equal weight, and clients that cache beyond the TTL keep using them. This is why a stale registry converts directly into user-visible errors instead of being absorbed.",
+    dns:"All internal service records are A/AAAA multivalue, TTL 15, zero Route53 health checks in the account.",
+    ev:`aws elbv2 describe-load-balancers  -> [] (us-east-1, us-east-2)
+aws route53 list-health-checks     -> []
+All Cloud Map DnsRecords: TTL 15, Type A or AAAA, multivalue
+ECS edge tasks carry public IPs directly (assignPublicIp=ENABLED)
+-> internet-facing compute with no ALB, no WAF, no shield at the edge`,
+    fix:"Put an ALB in front of the app and auth tiers with health-checked target groups, and an internal NLB/ALB for the data tier. Let target-group health, not a cron Lambda, decide membership."},
+
+  asg:{t:"Auto Scaling groups cannot heal or scale",s:"10 ASGs, all min=max=desired=1",
+    sev:2,pill:"Severe",
+    why:"Every ASG is fixed at exactly one instance in exactly one AZ, with HealthCheckType=EC2. EC2 health checks only detect hypervisor and instance-level failure — a hung process, a full disk, or a wedged application stays 'healthy' and stays in DNS. And because max=1, there is no capacity headroom for load or for a rolling replacement.",
+    dns:"Each replacement mints a new IPv6 address, which the registrar appends without removing the old one.",
+    ev:`All 10 ASGs: min=1 max=1 desired=1, HealthCheckType=EC2, single AZ
+  app-1[2a] app-2[2b] app-3[2c] auth[2a] batch[2c]
+  cache[2a] canary[2c] db-primary[2a] db-replica[2b] syslog[2b]
+
+Consequence observed: auth replaced at 17:12Z; old instance terminated
+but still in DNS, new instance live but absent from DNS.`,
+    fix:"Multi-AZ ASGs, max > min for rolling replacement, and HealthCheckType=ELB once load balancers exist."},
+
+  egress:{t:"No IPv4 egress, no interface endpoints",s:"0 NAT gateways · 1 gateway endpoint (S3)",
+    sev:3,pill:"Elevated",
+    why:"Workload subnets have no IPv4 default route at all. Outbound IPv4 is limited to S3 via the gateway endpoint; general egress works only over IPv6 through the egress-only IGW. There are no interface endpoints for SSM, CloudWatch Logs, ECR, or Secrets Manager. This is not a traffic-serving risk, it is a recovery risk: when something breaks, Session Manager may be unavailable precisely when you need shell access.",
+    dns:"Not applicable.",
+    ev:`aws ec2 describe-nat-gateways -> [] (none in the VPC)
+VPC endpoints: only vpce-0408febdcc55a19cf = com.amazonaws.us-east-2.s3 (Gateway)
+  -> no ssm, ssmmessages, ec2messages, logs, ecr, secretsmanager
+
+Workload route tables wl-rt-a/b/c contain:
+  10.20.64.0/18            local
+  2001:db8:1892:27fd::/56  local
+  ::/0                      eigw-0ab045701000f0e21
+  pl-07569f2f               vpce-0408febdcc55a19cf
+  -> no 0.0.0.0/0 route of any kind`,
+    fix:"Add interface endpoints for ssm/ssmmessages/ec2messages and logs so break-glass access and telemetry survive an incident."},
+
+  dr:{t:"No disaster recovery target",s:"acme-use1 / us-east-1 · vpc-0faf1f66f924f2121",
+    sev:2,pill:"Severe",
+    why:"The us-east-1 environment looks like a second region but is an empty shell: a VPC and a Cloud Map namespace, and nothing else. No subnets, no internet gateway, no instances, no ASGs, no ECS cluster. There is also no peering and no transit gateway, so the two regions are not even connected. A regional event in us-east-2 has no destination to fail over to, and with zero snapshots there is nothing to restore from either.",
+    dns:"acme.use1.internal hosted zone contains only NS and SOA records — no service records exist.",
+    ev:`us-east-1 vpc-0faf1f66f924f2121 (10.20.0.0/18):
+  describe-subnets            -> [] (empty)
+  describe-internet-gateways  -> []
+  describe-nat-gateways       -> []
+  describe-instances          -> []
+  describe-auto-scaling-groups-> []
+  ecs list-clusters           -> []
+  Cloud Map ns-9d8f83b182859fbb (acme.use1.internal) -> 0 services
+
+No cross-region connectivity:
+  describe-vpc-peering-connections -> []
+  describe-transit-gateways        -> []
+Only real resource: Lambda acme-use1-nau (NAU metrics toggle helper)`,
+    fix:"Decide explicitly whether DR is required. If yes, start with cross-region snapshot copies — that is cheap and addresses the unrecoverable-data problem first."},
+
+  dupns:{t:"Duplicate namespace, orphaned hosted zone",s:"2 × acme.use2.internal",
+    sev:3,pill:"Elevated",
+    why:"Two Cloud Map namespaces share the name acme.use2.internal, backed by two separate private hosted zones. The registrar targets the correct one, so there is no active resolution failure — but the decoy zone is attached to a VPC that no longer exists, and a future change pointed at the wrong namespace ID would fail silently and confusingly.",
+    dns:"Live zone Z7E83D4C17524B080F658 holds 24 records. Decoy zone ZDC995D8D73A58542935B holds only NS and SOA.",
+    ev:`ns-0ce75bdfdfc530bb -> Z7E83D4C17524B080F658  created 23:51:59
+   VPC vpc-069cd5268c09419ce  (LIVE), 24 records
+   svc-register NAMESPACE_ID = ns-0ce75bdfdfc530bb  <-- correct target
+
+ns-29a5b43aaaecd57a -> ZDC995D8D73A58542935B  created 22:57:27
+   VPC vpc-0edca47099f5afb6b  <-- does not exist, 2 records (NS+SOA)`,
+    fix:"Delete the orphaned namespace and hosted zone to remove the ambiguity."}
+};
+
+/* ---------------- render ---------------- */
+const AZ_ORDER = [
+  ["us-east-2a","Correlated failure domain: only writer + only cache + only auth",true,
+   ["db-primary","cache","auth","app-1"]],
+  ["us-east-2b","Replica and log sink; no promotion automation",false,
+   ["db-replica","app-2","syslog"]],
+  ["us-east-2c","Async and observability workloads",false,
+   ["app-3","batch","canary"]],
+  ["public subnets a/b/c","ECS-managed ingress \u2014 the only accurate registry",false,
+   ["edge"]]
+];
+/* map this page's 1/2/3/ok severities onto the shared pill classes */
+const PILL={1:"crit",2:"high",3:"med",ok:"ok"};
+
+document.getElementById("azgrid").innerHTML = AZ_ORDER.map(([az,note,hot,keys])=>`
+  <div class="az${hot?" hot":""}">
+    <h3>${az}</h3><div class="aznote">${note}</div>
+    ${keys.map(k=>{
+      const n=NODES[k], tot=n.live+n.dead;
+      return `<div class="node" data-sev="${n.sev}" data-key="${k}" tabindex="0" role="button"
+        aria-label="${k} — ${n.pill}: ${n.tag}">
+        <div class="top"><span class="nm">${k}</span>
+        <span class="sev ${PILL[n.sev]}">${n.tag}</span></div>
+        <div class="meta">${n.meta}</div>
+        ${tot?`<div class="bar" title="${n.live} live / ${n.dead} stale DNS answers">
+          <i class="live" style="width:${n.live/tot*100}%"></i>
+          <i class="dead" style="width:${n.dead/tot*100}%"></i></div>
+          <div class="meta">DNS answers: ${n.live} live / ${n.dead} stale</div>`:``}
+      </div>`}).join("")}
+  </div>`).join("");
+
+document.getElementById("risktable").innerHTML = RISKS.map(r=>`
+  <tr data-key="${r.k}" tabindex="0" role="button">
+    <td class="rk">${r.r}</td><td><b>${r.n}</b></td>
+    <td class="rad">${r.rad}</td><td class="rad">${r.rec}</td>
+  </tr>`).join("");
+
+/* ---------------- inspector rail ----------------
+   Replaces the old modal drawer so both demos share one interaction model:
+   select something on the left, evidence appears in the right rail.        */
+const D=document.getElementById("detail");
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+function show(key){
+  const d = EXTRA[key] || NODES[key];
+  if(!d) return;
+  document.querySelectorAll("[data-key].sel").forEach(e=>e.classList.remove("sel"));
+  document.querySelectorAll('[data-key="'+key+'"]').forEach(e=>e.classList.add("sel"));
+
+  const base  = NODES[key] || {};
+  const title = d.t || key;
+  const sub   = d.s || [base.az, base.meta].filter(Boolean).join(" \u00b7 ");
+
+  D.innerHTML = `
+    <p class="dh">${title}</p>
+    <p class="dsub">${sub}</p>
+    <p><span class="sev ${PILL[d.sev]}">${d.pill}</span></p>
+    <h4>Why this matters</h4><p class="hint">${d.why}</p>
+    <h4>DNS / resolution state</h4><p class="hint">${d.dns}</p>
+    <h4>Evidence (live API output)</h4><pre>${esc(d.ev)}</pre>
+    <h4>Recommended fix</h4><p class="hint">${d.fix}</p>`;
+
+  D.closest(".rail-scroll").scrollTop = 0;
+  /* stacked layout: the rail sits below the content, so bring it into view */
+  if(window.matchMedia("(max-width:1020px)").matches){
+    document.getElementById("rail").scrollIntoView({behavior:"smooth",block:"start"});
+  }
+}
+
+document.addEventListener("click",e=>{
+  const el=e.target.closest("[data-key]");
+  if(el) show(el.dataset.key);
+});
+document.addEventListener("keydown",e=>{
+  if((e.key==="Enter"||e.key===" ")&&document.activeElement?.dataset?.key){
+    e.preventDefault(); show(document.activeElement.dataset.key);
+  }
+});
+</script>
+</body>
+</html>

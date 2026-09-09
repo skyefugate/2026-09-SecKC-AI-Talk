@@ -1,0 +1,32 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  template:
+    name: cloudformation template parses
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install cfn-lint
+        run: pip install --disable-pip-version-check cfn-lint==1.22.3
+
+      - name: lint
+        run: cfn-lint iac/vpc-baseline/template.yaml
+
+  html:
+    name: html and links resolve
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: check local references resolve
+        run: python3 scripts/check-links.py

@@ -1,0 +1,34 @@
+name: architecture docs
+
+# Push an IaC change, get an updated diagram. That is the whole demo.
+
+on:
+  push:
+    paths:
+      - "iac/**/template.yaml"
+      - "scripts/generate-architecture.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install pyyaml==6.0.2
+
+      - run: python3 scripts/generate-architecture.py
+
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add iac
+          git diff --cached --quiet || git commit -m "docs(iac): update architecture diagram"
+          git push

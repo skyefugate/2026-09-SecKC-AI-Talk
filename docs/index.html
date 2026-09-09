@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My Network Has Commitment Issues — SecKC, September 2026</title>
+<meta name="description" content="Slides and the live AI-generated architecture diagrams from Skye Fugate's SecKC 2026 talk on using AI as a network troubleshooting partner.">
+<meta name="color-scheme" content="dark">
+<link rel="stylesheet" href="assets/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0f14'/%3E%3Ctext x='16' y='23' font-family='monospace' font-size='20' font-weight='700' fill='%234db8ff' text-anchor='middle'%3E%26gt;%3C/text%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:title" content="My Network Has Commitment Issues — SecKC 2026">
+<meta property="og:description" content="Slides and the live AI-generated architecture diagrams from the SecKC 2026 talk.">
+</head>
+<body>
+
+<a class="skip" href="#demos-h">Skip to the demos</a>
+
+<header>
+  <div class="wrap">
+    <p class="kicker">SecKC &middot; September 2026</p>
+    <h1>My Network Has Commitment Issues<span class="sub">AI Debugged Its Feelings</span></h1>
+    <p class="byline">Skye Fugate</p>
+    <p class="lede">
+      Networks promise reliability but ghost you at 3&nbsp;AM. I got tired of reading logs, so I
+      taught AI to be my troubleshooting partner. Everything from the talk lives here.
+    </p>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section aria-labelledby="demos-h">
+    <h2 id="demos-h">Demos</h2>
+    <p class="section-note">
+      Each one was generated live on stage from a single prompt. Nothing hand-drawn, nothing
+      tidied up afterwards.
+    </p>
+
+    <div class="grid">
+
+      <article class="card">
+        <p class="num">Demo 1 &middot; live</p>
+        <h3><a href="demos/network-map.html">Network mapping &amp; discovery</a></h3>
+        <p>Dropped into an unfamiliar environment. See the thing fast.</p>
+        <blockquote class="prompt">
+          <p>Hi GLaDOS, discover this AWS environment and show me the paths and dependencies
+          that matter. Express this output as a HTML/CSS interactive diagram.</p>
+        </blockquote>
+        <p class="go"><a class="btn" href="demos/network-map.html">Open the map</a></p>
+      </article>
+
+      <article class="card">
+        <p class="num">Demo 2 &middot; live</p>
+        <h3><a href="demos/blast-radius.html">Architecture review</a></h3>
+        <p>A sounding board that never gets defensive about your design.</p>
+        <blockquote class="prompt">
+          <p>Hi GLaDOS, review the architecture in this AWS environment. Which failure points
+          create the largest blast radius? Express this output as a HTML/CSS interactive diagram.</p>
+        </blockquote>
+        <p class="go"><a class="btn" href="demos/blast-radius.html">Open the analysis</a></p>
+      </article>
+
+      <article class="card">
+        <p class="num">Demo 3 &middot; extra credit</p>
+        <h3>Architecture <em>documentation</em></h3>
+        <p>When did you last update the diagram after shipping a band-aid fix? Right.</p>
+        <blockquote class="prompt">
+          <p>Hi GLaDOS, write a script that runs on GitHub Actions so that as I push an IaC change
+          it updates my architecture documentation. Express this as a living README using Mermaid.</p>
+        </blockquote>
+        <p class="go"><a class="btn ghost" href="https://github.com/skyefugate/2026-09-SecKC-AI-Talk/tree/main/iac/vpc-baseline">See the template</a></p>
+      </article>
+
+    </div>
+  </section>
+
+  <section aria-labelledby="more-h">
+    <h2 id="more-h">Also here</h2>
+    <ul class="links">
+      <li>
+        <a href="https://github.com/skyefugate/2026-09-SecKC-AI-Talk/tree/main/prompts">Prompts &amp; persona</a>
+        <span>The agent definition and the demo prompts verbatim. Shorter than you expect.</span>
+      </li>
+      <li>
+        <a href="https://github.com/skyefugate/2026-09-SecKC-AI-Talk">Repository</a>
+        <span>Everything above, plus the CloudFormation template demo 3 runs against. CC&nbsp;BY&nbsp;4.0.</span>
+      </li>
+      <li>
+        <a href="slides/slides.pdf">Slides</a>
+        <span>&ldquo;My Network Has Commitment Issues&rdquo; &mdash; the deck as presented. PDF, 6&nbsp;MB.</span>
+      </li>
+    </ul>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="fine">
+      The diagrams describe a throwaway environment built for this talk and torn down after it.
+      Every identifier in them is historical &mdash; nothing resolves to anything any more.
+    </p>
+    <p>
+      <a href="https://skye.fugate.dev">skye.fugate.dev</a> &middot;
+      <a href="https://github.com/skyefugate/2026-09-SecKC-AI-Talk">Repository</a> &middot;
+      <a href="https://seckc.org/">SecKC</a>
+    </p>
+    <p class="fine">Be polite to AI. You never know what&rsquo;s coming.</p>
+  </div>
+</footer>
+
+</body>
+</html>
