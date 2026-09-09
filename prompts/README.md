@@ -64,6 +64,12 @@ Guardrails are the section people skip and then regret.
 
 ## The demo prompts
 
-All three, verbatim, in [`demo-prompts.md`](demo-prompts.md). They are
-deliberately short. If your prompt needs to be long, the thing you actually need
-is a skill.
+All four, verbatim, in [`demo-prompts.md`](demo-prompts.md). The first three are
+deliberately short: if your prompt needs to be long, the thing you actually need is
+a skill.
+
+The fourth is the counter-example. [`THREAT_HUNTER.md`](THREAT_HUNTER.md) is 140
+lines, and the prompt that invokes it is a filename. Forensic judgment cannot be
+factored out into a skill — there is no tool call for "decide what matters in a
+1.7 GB packet capture" — so it lives in the persona, and the persona spends most of
+its length on the output contract and the list of things not to do.

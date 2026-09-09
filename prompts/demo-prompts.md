@@ -3,8 +3,10 @@
 Verbatim, including the bits that are not grammatical. These are what was typed on
 stage — no hidden setup turn, no pre-warmed context.
 
-Each one ends with an explicit output format. That clause is doing a lot of work:
-without it you get prose, and prose does not project well to a room of 300 people.
+The first three end with an explicit output format. That clause is doing a lot of
+work: without it you get prose, and prose does not project well to a room of 300
+people. The fourth does not need it, because the output contract is baked into the
+persona instead — which is the trade-off worth understanding.
 
 ---
 
@@ -82,11 +84,36 @@ reviewed.
 
 ---
 
-## Why they are all this short
+## Demo 4 — Investigating a 1.7 GB packet capture
 
-The prompts are short because the agent is not short on context. It has skills for
-procedure and MCP servers for access. Prompt length is a symptom: if you find
-yourself writing paragraph six of instructions, stop and write a skill instead.
+*A capture that size is not something you open in Wireshark and scroll. It is
+something you ask a question of.*
 
-And every one of these ran with real permissions against a real account. Read what it proposes before you approve it. If you let it log in as admin
-and it suggests deleting an ARP entry and you hit yes, you deleted the ARP entry.
+This one is not a one-liner, and it is the exception that proves the rule. The
+prompt is short because the *persona* is long — the whole investigative method
+lives in [`THREAT_HUNTER.md`](THREAT_HUNTER.md), so the turn itself is just the
+evidence pointer:
+
+```
+Please find your evidence located at:
+capture.pcap
+```
+
+**Watch for:** it never dumps the packets. The persona forbids it explicitly —
+targeted `tshark` with timeouts, statistical summaries, extracted indicators. A
+1.7 GB file will not fit in a context window and an agent that tries to inline it
+burns your budget and tells you nothing.
+
+**Persona:** [`THREAT_HUNTER.md`](THREAT_HUNTER.md) — carried over unchanged from
+the [December 2025 SecDSM talk](https://github.com/skyefugate/2025-12-SecDSM-AI-Talk),
+where it ran against VPC flow logs instead.
+
+Note the shape of that file: Identity → Mission → Critical Performance Rules →
+Objectives → Approach → Deliverable Format → Rules of Engagement → Voice. The
+longest sections are the *output contract* and the *don't-do-this* list. That is
+where persona length earns its keep — not in explaining what a TCP handshake is,
+but in pinning down what a finding has to look like before you will accept it.
+
+The GLaDOS persona is one line because the network demos delegate procedure to
+skills. This one is 140 lines because forensic judgment *is* the procedure, and
+there is no tool call that encodes "decide what matters in a packet capture."

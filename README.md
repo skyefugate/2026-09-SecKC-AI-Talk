@@ -12,7 +12,7 @@ This repo has everything from the talk.
 
 **Slides (PDF)** — The full deck. Going up as `docs/slides/slides.pdf` once it's final.
 
-**Demos** — Three demos, each generated live on stage from one prompt:
+**Demos** — Four demos, each generated live on stage from one prompt:
 
 1. **<a href="https://skyefugate.github.io/2026-09-SecKC-AI-Talk/demos/network-map.html" target="_blank">Network Mapping & Discovery</a>** — "Discover this AWS environment and show me the paths and dependencies that matter." Inventory, route intent, and dependencies in one interactive map. Nobody drew this.
 
@@ -20,7 +20,9 @@ This repo has everything from the talk.
 
 3. **Architecture Documentation** *(live, in this repo)* — "Write a script that runs on GitHub Actions that as I push an IaC change it will update my architecture documentation." The CloudFormation template is committed at [`iac/vpc-baseline/`](iac/vpc-baseline/). Writing the generator, the workflow, and the diagram is the demo — a ~100-line script and a 25-line workflow, both in the repo so you can steal them.
 
-All three prompts, verbatim, are in **[prompts/demo-prompts.md](prompts/demo-prompts.md)**.
+4. **Threat Hunting a 1.7 GB PCAP** — "Please find your evidence located at: `capture.pcap`." A capture that size is not something you scroll through; it's something you ask a question of. The prompt is a filename because the method lives in the persona: [`THREAT_HUNTER.md`](prompts/THREAT_HUNTER.md), carried over from the <a href="https://github.com/skyefugate/2025-12-SecDSM-AI-Talk" target="_blank">SecDSM talk</a>.
+
+All four prompts, verbatim, are in **[prompts/demo-prompts.md](prompts/demo-prompts.md)**.
 
 ## Prompts, Persona, and Skills
 
@@ -28,6 +30,7 @@ The actual configuration behind the demos:
 
 - **[GLaDOS.json](prompts/GLaDOS.json)** — The agent definition. The persona is one line. That is not a typo, and it's the most useful thing in this repo.
 - **[NETWORK_AGENT.md](prompts/NETWORK_AGENT.md)** — Prompting structure: Identity → Mission → Guardrails → Output
+- **[THREAT_HUNTER.md](prompts/THREAT_HUNTER.md)** — The long persona, and why demo 4 earns one: the output contract and the don't-do-this list are the bulk of it.
 - **[f5-virtual-server-discovery](prompts/skills/f5-virtual-server-discovery.md)** — Skill structure: Trigger → Procedure → Resources → Result
 
 Prompting is how I want you to *think*. Skills are how I want you to *do a thing*. MCP is how you *reach* the world. Keep those three separate and none of them has to be enormous. See **[prompts/](prompts/)**.
